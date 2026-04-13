@@ -1,0 +1,150 @@
+:root {
+    --primary-color: #3b82f6;
+    --danger-color: #ef4444;
+    --bg-color: #0f172a;
+    --card-bg: rgba(30, 41, 59, 0.85);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg-color) url('../assets/Fondo.png') center/cover fixed;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.auth-container {
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 2.5rem 2rem;
+    width: 100%;
+    max-width: 420px;
+    backdrop-filter: blur(12px);
+}
+
+.logo {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.logo-icon { font-size: 2.5rem; display: block; margin-bottom: 0.5rem; }
+.logo h1 { font-size: 1.8rem; font-weight: 800; }
+.logo p { color: var(--text-muted); font-size: 0.95rem; margin-top: 0.3rem; }
+
+.auth-form { display: flex; flex-direction: column; gap: 1.2rem; }
+
+.input-group { display: flex; flex-direction: column; gap: 0.5rem; }
+.input-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.input-field {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    color: var(--text-main);
+    font-size: 1rem;
+    padding: 0.75rem 1rem;
+    width: 100%;
+    transition: border-color 0.2s;
+}
+.input-field:focus { outline: none; border-color: var(--primary-color); }
+.input-field::placeholder { color: var(--text-muted); }
+
+.password-wrapper { position: relative; }
+.password-wrapper .input-field { padding-right: 3rem; }
+.password-toggle {
+    position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 1rem;
+}
+
+.remember-forgot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+}
+.remember-me { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-muted); }
+.forgot-link { color: var(--primary-color); text-decoration: none; }
+.forgot-link:hover { text-decoration: underline; }
+
+.auth-button {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.85rem;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.2s;
+    margin-top: 0.5rem;
+}
+.auth-button:hover { background: #2563eb; }
+.auth-button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.error-msg {
+    background: rgba(239,68,68,0.15);
+    border: 1px solid var(--danger-color);
+    border-radius: 8px;
+    color: #fca5a5;
+    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+    display: none;
+}
+.error-msg.visible { display: block; }
+
+.divider {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    position: relative;
+    margin: 0.5rem 0;
+}
+.divider::before, .divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 40%;
+    height: 1px;
+    background: var(--glass-border);
+}
+.divider::before { left: 0; }
+.divider::after { right: 0; }
+
+.alt-auth { display: flex; gap: 1rem; }
+.alt-button {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+    border-radius: 8px; color: var(--text-main); padding: 0.7rem;
+    cursor: pointer; font-size: 0.9rem; transition: background 0.2s;
+}
+.alt-button:hover { background: rgba(255,255,255,0.1); }
+.alt-button i { font-weight: 800; }
+
+.footer-links {
+    text-align: center;
+    margin-top: 1.5rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+}
+.footer-links a { color: var(--primary-color); text-decoration: none; }
+.footer-links a:hover { text-decoration: underline; }

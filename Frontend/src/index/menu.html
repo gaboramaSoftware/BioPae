@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Panel de Administración - Digitador Piamarta</title>
+    <link rel="stylesheet" href="../styles/menuStyle.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <h2>Biopae</h2>
+                <span>Admin Panel</span>
+            </div>
+            <nav>
+                <a href="javascript:void(0)" class="active" onclick="showSection('dashboard')">
+                    <span class="icon">📊</span> Dashboard
+                </a>
+                <a href="javascript:void(0)" onclick="showSection('students')">
+                    <span class="icon">👥</span> Estudiantes
+                </a>
+                <a href="javascript:void(0)" onclick="showSection('reports')">
+                    <span class="icon">📋</span> Informes
+                </a>
+                <a href="javascript:void(0)" onclick="showSection('asistencia')">
+                    <span class="icon">📅</span> Asistencia
+                </a>
+            </nav>
+            <a class="nav-back" href="../index.html"
+               onclick="window.location.href='../index.html'"
+               style="border: 2px solid; border-radius: 
+               5px; padding: 5px; margin: 20px; display: block;
+               text-align: center; color: white;">
+                <span class="icon">←</span> Volver al inicio
+            </a>
+            <div class="status-box">
+                <div class="status-indicator online"></div>
+                <span>Sistema Online</span>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header>
+                <div class="header-title">
+                    <h1 id="page-title">Dashboard</h1>
+                    <span class="date-display" id="current-date">Cargando fecha...</span>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-refresh" onclick="refreshData()">
+                        <span class="icon">🔄</span> Actualizar
+                    </button>
+                    <div class="user-profile">
+                        <span>Admin</span>
+                        <div class="avatar">
+                            <img src="../assets/Logo.png" alt="Avatar" class="avatar-image"
+                            style="height: 40px; width: 40px;">
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <div id="dashboard" class="section active">
+                <div class="stats-grid">
+                    <div class="card stat-card">
+                        <div class="stat-icon breakfast">☕</div>
+                        <div class="stat-info">
+                            <h3>Desayunos</h3>
+                            <p class="stat-value" id="count-breakfast">0</p>
+                            <span class="stat-label">Hoy</span>
+                        </div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon lunch">🍽️</div>
+                        <div class="stat-info">
+                            <h3>Almuerzos</h3>
+                            <p class="stat-value" id="count-lunch">0</p>
+                            <span class="stat-label">Hoy</span>
+                        </div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon total">📝</div>
+                        <div class="stat-info">
+                            <h3>Total Raciones</h3>
+                            <p class="stat-value" id="count-total">0</p>
+                            <span class="stat-label">Hoy</span>
+                        </div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon terminal">🖥️</div>
+                        <div class="stat-info">
+                            <h3>Terminales</h3>
+                            <p class="stat-value">1</p>
+                            <span class="stat-label">Activos</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card table-card">
+                    <div class="card-header">
+                        <h3>Registros Recientes <small id="dashboard-records-hint" style="font-weight:normal; font-size:0.75rem; color:#888;">(últimos 20)</small></h3>
+                        <div class="card-actions">
+                            <button class="btn-exportar" onclick="openExportModal()">
+                                <span class="icon">📤</span> Exportar a Excel
+                            </button>
+                            <div class="search-box">
+                                <input type="text" id="search-input" placeholder="Buscar por nombre o RUN..."
+                                    onkeyup="filterDashboardTable()">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Estudiante</th>
+                                    <th>Curso</th>
+                                    <th>Ración</th>
+                                    <th>Fecha</th>
+                                    <th>Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody id="records-body">
+                                <tr>
+                                    <td colspan="5" class="text-center">Cargando datos...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Students Section -->
+            <div id="students" class="section">
+                <div class="students-actions-bar">
+                    <button class="btn-primary" onclick="openEnrollModal()">
+                        <span class="icon">➕</span> Enrolar Estudiante
+                    </button>
+                    <button class="btn-secondary" onclick="document.getElementById('import-junaeb-file').click()">
+                        <span class="icon">📥</span> Importar Lista JUNAEB
+                    </button>
+                    <input type="file" id="import-junaeb-file" accept=".xlsx,.xls"
+                           style="display:none" onchange="importarJUNAEB(this)">
+                    <button class="btn-secondary" onclick="exportarListaJUNAEB()">
+                        <span class="icon">📤</span> Exportar Lista JUNAEB
+                    </button>
+                    <span id="import-status" style="display:none" class="import-status"></span>
+                    <button class="btn-danger btn-danger-inline" onclick="openDeleteAllModal()">
+                        <span class="icon">🗑️</span> Eliminar todos
+                    </button>
+                </div>
+
+                <div class="card table-card">
+                    <div class="card-header">
+                        <h3>Gestión de Estudiantes</h3>
+                        <div class="card-header-filters">
+                            <div class="filter-group">
+                                <select id="nivel-filter" onchange="filterStudentsByCourse()">
+                                    <option value="">Todos los niveles</option>
+                                </select>
+                                <select id="letra-filter" onchange="filterStudentsByCourse()">
+                                    <option value="">Todos los cursos</option>
+                                </select>
+                            </div>
+                            <div class="search-box">
+                                <input type="text" id="search-students-input" placeholder="Buscar por nombre o RUN..."
+                                    onkeyup="filterStudentsTable()">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>RUN</th>
+                                    <th>Nombre Completo</th>
+                                    <th>Curso</th>
+                                    <th>PAE</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="students-body">
+                                <tr>
+                                    <td colspan="5" class="text-center">Cargando datos de estudiantes...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Asistencia Section -->
+            <div id="asistencia" class="section">
+                <div class="card table-card">
+                    <div class="card-header">
+                        <h3>Grilla de Asistencia JUNAEB</h3>
+                        <div class="card-actions">
+                            <select id="asistencia-curso-filter" onchange="filtrarAsistenciaCurso()"
+                                style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:#f1f5f9;padding:0.45rem 0.75rem;font-size:0.83rem;cursor:pointer;">
+                                <option value="">Todos los cursos</option>
+                            </select>
+                            <button class="btn-secondary" onclick="mesAnterior()">← Anterior</button>
+                            <span id="asistencia-mes-label" style="font-weight:600; padding:0 14px; font-size:0.95rem;"></span>
+                            <button class="btn-secondary" onclick="mesSiguiente()">Siguiente →</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive" id="asistencia-container" style="overflow-x:auto;">
+                        <p class="text-center">Cargando...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Section -->
+            <div id="reports" class="section">
+                <div class="card table-card">
+                    <div class="card-header">
+                        <h3>Registros Recientes</h3>
+                        <div class="card-actions">
+                            <button class="btn-exportar" onclick="openExportModal()">
+                                <span class="icon">📤</span> Exportar a Excel
+                            </button>
+                            <button class="btn-danger btn-danger-inline" onclick="openDeleteRegistrosModal()">
+                                <span class="icon">🗑️</span> Eliminar Registros
+                            </button>
+                            <div class="search-box">
+                                <input type="text" id="search-reports-input" placeholder="Buscar por nombre o RUN..."
+                                       onkeyup="filterReportsTable()">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Estudiante</th>
+                                    <th>Curso</th>
+                                    <th>Ración</th>
+                                    <th>Fecha</th>
+                                    <th>Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reports-body">
+                                <tr>
+                                    <td colspan="5" class="text-center">Cargando datos...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal: Enrolar Estudiante -->
+    <div id="enrollModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Enrolar Nuevo Estudiante</h2>
+                <button class="modal-close" onclick="closeEnrollModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="enrollForm" onsubmit="handleEnrollStudent(event)">
+                    <div class="form-group">
+                        <label for="enroll-run">RUN (sin puntos ni guión)</label>
+                        <input type="text" id="enroll-run" required pattern="[0-9]{7,8}[0-9Kk]"
+                            placeholder="Ej: 12345678K" maxlength="9">
+                    </div>
+                    <div class="form-group">
+                        <label for="enroll-nombre">Nombre</label>
+                        <input type="text" id="enroll-nombre" required placeholder="Nombre del estudiante">
+                    </div>
+                    <div class="form-group">
+                        <label for="enroll-apellido">Apellido</label>
+                        <input type="text" id="enroll-apellido" required placeholder="Apellido del estudiante">
+                    </div>
+                    <div class="form-group">
+                        <label for="enroll-curso">Curso</label>
+                        <select id="enroll-curso" required>
+                            <option value="">Seleccione un curso</option>
+                            <option value="1° Básico">1° Básico</option>
+                            <option value="2° Básico">2° Básico</option>
+                            <option value="3° Básico">3° Básico</option>
+                            <option value="4° Básico">4° Básico</option>
+                            <option value="5° Básico">5° Básico</option>
+                            <option value="6° Básico">6° Básico</option>
+                            <option value="7° Básico">7° Básico</option>
+                            <option value="8° Básico">8° Básico</option>
+                            <option value="1° Medio">1° Medio</option>
+                            <option value="2° Medio">2° Medio</option>
+                            <option value="3° Medio">3° Medio</option>
+                            <option value="4° Medio">4° Medio</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="enroll-pae"> Es alumno PAE
+                        </label>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="closeEnrollModal()">Cancelar</button>
+                        <button type="submit" class="btn-primary">Enrolar Estudiante</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Estadísticas del Estudiante -->
+    <div id="statsModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>Estadísticas del Estudiante</h2>
+                <button class="modal-close" onclick="closeStatsModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="student-info-header">
+                    <div class="student-avatar-large">
+                        <span id="stats-avatar-letter">A</span>
+                    </div>
+                    <div class="student-info-details">
+                        <h3 id="stats-student-name">Nombre del Estudiante</h3>
+                        <p id="stats-student-run">RUN: 12345678-9</p>
+                        <p id="stats-student-curso">Curso: 1° Básico</p>
+                        <p id="stats-student-pae">PAE: -</p>
+                    </div>
+                    <div class="student-info-actions">
+                        <button class="btn-exportar" onclick="openDetalleModal()">
+                            <span class="icon">📊</span> Detalle
+                        </button>
+                        <button class="btn-exportar" onclick="openEditModal()">
+                            <span class="icon">✏️</span> Editar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="stats-summary">
+                    <div class="stat-box">
+                        <div class="stat-box-icon breakfast">☕</div>
+                        <div class="stat-box-info">
+                            <p class="stat-box-value" id="stats-breakfast">0</p>
+                            <p class="stat-box-label">Desayunos</p>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-box-icon lunch">🍽️</div>
+                        <div class="stat-box-info">
+                            <p class="stat-box-value" id="stats-lunch">0</p>
+                            <p class="stat-box-label">Almuerzos</p>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-box-icon total">📊</div>
+                        <div class="stat-box-info">
+                            <p class="stat-box-value" id="stats-total">0</p>
+                            <p class="stat-box-label">Total Raciones</p>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-box-icon percentage">📈</div>
+                        <div class="stat-box-info">
+                            <p class="stat-box-value" id="stats-percentage">0%</p>
+                            <p class="stat-box-label">Asistencia Mensual</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Historial de Alimentación -->
+    <div id="detalleModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>Historial de Alimentación</h2>
+                <button class="modal-close" onclick="closeDetalleModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="student-info-header" style="margin-bottom: 20px;">
+                    <div class="student-info-details">
+                        <h3 id="detalle-student-name">Nombre Estudiante</h3>
+                        <p id="detalle-student-run">RUN: ...</p>
+                    </div>
+                    <button class="btn-secondary" onclick="closeDetalleModal(); openStudentStats(currentStudent.run)">
+                        ← Volver al Resumen
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Hora</th>
+                                <th>Tipo Ración</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detalle-body">
+                            <tr>
+                                <td colspan="4" class="text-center">Cargando historial...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Editar Estudiante -->
+    <div id="editarModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Editar Datos de Usuario</h2>
+                <button class="modal-close" onclick="closeEditModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="editForm" onsubmit="handleEditStudent(event)">
+                    <div class="form-group">
+                        <label for="edit-run">RUN <span class="label-hint">sin puntos ni guión</span></label>
+                        <input type="text" id="edit-run" placeholder="Ej: 12345678K" maxlength="9">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-nombre">Nombre</label>
+                        <input type="text" id="edit-nombre" required placeholder="Primer nombre">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-apellido">Apellidos</label>
+                        <input type="text" id="edit-apellido" required placeholder="Apellidos">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-curso">Curso</label>
+                        <select id="edit-curso">
+                            <option value="">Sin cambiar</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="edit-pae"> Es alumno PAE
+                        </label>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancelar</button>
+                        <button type="submit" class="btn-primary" onclick="closeEditModal()">Guardar Cambios</button>
+                    </div>
+                </form>
+                <div class="modal-divider"></div>
+                <button type="button" class="btn-danger" onclick="openDeleteModal()">
+                    <span class="icon">🗑️</span> Eliminar Estudiante
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmar Eliminación -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Confirmar Eliminación</h2>
+                <button class="modal-close" onclick="closeDeleteModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro que desea eliminar a <strong id="delete-student-name"></strong>?</p>
+                <p class="warning-text">Esta acción no se puede deshacer.</p>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeDeleteModal()">Cancelar</button>
+                    <button type="button" class="btn-danger btn-danger-inline" onclick="handleDeleteStudent()">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmar Eliminación de Registros -->
+    <div id="deleteRegistrosModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Eliminar todos los registros</h2>
+                <button class="modal-close" onclick="closeDeleteRegistrosModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro que desea eliminar <strong>todos los registros</strong>?</p>
+                <p class="warning-text">Esta acción eliminará permanentemente el historial de raciones. Los alumnos, cursos y tickets no serán afectados. No se puede deshacer.</p>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeDeleteRegistrosModal()">Cancelar</button>
+                    <button type="button" class="btn-danger btn-danger-inline" onclick="handleDeleteRegistros()">Eliminar registros</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmar Eliminación Masiva -->
+    <div id="deleteAllModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Eliminar todos los estudiantes</h2>
+                <button class="modal-close" onclick="closeDeleteAllModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro que desea eliminar <strong>todos los alumnos</strong> del sistema?</p>
+                <p class="warning-text">Esta acción eliminará permanentemente todos los alumnos y sus huellas. Los cursos, tickets y raciones no serán afectados. No se puede deshacer.</p>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeDeleteAllModal()">Cancelar</button>
+                    <button type="button" class="btn-danger btn-danger-inline" onclick="handleDeleteAll()">Eliminar todo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Exportar Registros con Filtros -->
+    <div id="exportModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Exportar Registros</h2>
+                <button class="modal-close" onclick="closeExportModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 16px; color: #888; font-size: 0.85rem;">
+                    Selecciona los filtros que deseas aplicar. Deja un campo en blanco para incluir todos.
+                </p>
+                <div class="form-group">
+                    <label for="export-curso">Curso</label>
+                    <select id="export-curso">
+                        <option value="">Todos los cursos</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="export-racion">Ración</label>
+                    <select id="export-racion">
+                        <option value="">Todas las raciones</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Rango de Fechas</label>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="date" id="export-fecha-desde" style="flex:1;">
+                        <span style="color:#888;">—</span>
+                        <input type="date" id="export-fecha-hasta" style="flex:1;">
+                    </div>
+                </div>
+                <div id="export-preview" style="font-size:0.82rem; color:#888; margin-top:8px; min-height:18px;"></div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeExportModal()">Cancelar</button>
+                    <button type="button" class="btn-primary" onclick="confirmarExportacion()">
+                        <span class="icon">📤</span> Exportar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="chart.main.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>

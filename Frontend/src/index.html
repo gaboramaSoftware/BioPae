@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digitador - Totem</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <!-- Waiting Screen (Default) -->
+  <div id="screen-waiting" class="screen active">
+    <div class="content">
+      <div class="fingerprint-icon">
+        <svg viewBox="0 0 100 100" width="200" height="200">
+          <circle cx="50" cy="50" r="45" stroke="white" stroke-width="3" fill="none" />
+          <image href="./assets/Logo.png" x="0" y="0" width="100" height="100" />
+        </svg>
+      </div>
+      <h1>Coloque su dedo en el sensor</h1>
+      <p class="subtitle">Esperando huella...</p>
+    </div>
+  </div>
+
+  <div class="admin-button">
+    <button class="admin-content" onclick="window.location.href='index/auth.html'">
+      Menu de admin
+    </button>
+  </div>
+
+  <div class="register-button">
+    <button class="register-content" onclick="iniciarRegistro()">
+      Registrarse
+    </button>
+  </div>
+
+  <!-- ===================== OVERLAY REGISTRO ===================== -->
+  <div id="overlay-enroll" class="enroll-overlay">
+
+    <!-- Paso 1: Escaneando huella para verificar -->
+    <div id="enroll-step-scanning" class="enroll-card enroll-step">
+      <div class="enroll-fingerprint-icon">
+        <svg viewBox="0 0 100 100" width="100" height="100">
+          <circle cx="50" cy="50" r="45" stroke="white" stroke-width="3" fill="none"/>
+          <image href="./assets/Logo.png" x="0" y="0" width="100" height="100"
+                 style="filter: brightness(0) invert(1);"/>
+        </svg>
+      </div>
+      <h2>Coloca tu dedo en el sensor</h2>
+      <p class="enroll-subtitle">Verificando si ya estás en el sistema...</p>
+      <button class="enroll-btn enroll-btn-cancel" onclick="cancelarRegistro()">Cancelar</button>
+    </div>
+
+    <!-- Paso 2a: Alumno ya registrado -->
+    <div id="enroll-step-ya-registrado" class="enroll-card enroll-step" style="display:none">
+      <div class="enroll-icon enroll-icon-info">ℹ</div>
+      <h2>Ya estás registrado</h2>
+      <p id="enroll-nombre-encontrado" class="enroll-nombre">-</p>
+      <p class="enroll-subtitle">¿Deseas actualizar tu huella dactilar?</p>
+      <div class="enroll-actions">
+        <button class="enroll-btn enroll-btn-primary" onclick="iniciarReEnrolamiento()">Sí, actualizar</button>
+        <button class="enroll-btn enroll-btn-cancel" onclick="cancelarRegistro()">No, cancelar</button>
+      </div>
+    </div>
+
+    <!-- Paso 2b: Alumno NO registrado -->
+    <div id="enroll-step-no-registrado" class="enroll-card enroll-step" style="display:none">
+      <div class="enroll-icon enroll-icon-question">?</div>
+      <h2>No estás registrado</h2>
+      <p class="enroll-subtitle">Ingresa tu nombre y curso para verificar si eres beneficiario PAE</p>
+      <div class="enroll-actions">
+        <button class="enroll-btn enroll-btn-primary" onclick="mostrarFormularioRegistro()">Continuar</button>
+        <button class="enroll-btn enroll-btn-cancel" onclick="cancelarRegistro()">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- Paso 3: Formulario de búsqueda -->
+    <div id="enroll-step-form" class="enroll-card enroll-step" style="display:none">
+      <h2>¿Cuál es tu nombre?</h2>
+      <p class="enroll-subtitle">Ingresa tu nombre y curso para registrarte</p>
+      <form id="enroll-form" onsubmit="handleEnrollForm(event)" class="enroll-form">
+        <input type="text" id="enroll-nombre" class="enroll-input" placeholder="Nombre completo" required autocomplete="off">
+        <input type="text" id="enroll-rut" class="enroll-input" placeholder="RUT (opcional, ej: 12345678-9)" autocomplete="off">
+        <p id="enroll-rut-error" style="color:#ff6b6b;display:none;font-size:0.85em;margin-top:-8px;">RUT inválido. Verifica el formato.</p>
+        <select id="enroll-curso" class="enroll-input" required>
+          <option value="">Seleccione un curso</option>
+        </select>
+        <button type="submit" class="enroll-btn enroll-btn-primary">Continuar</button>
+      </form>
+      <button class="enroll-btn enroll-btn-cancel" onclick="cancelarRegistro()">Cancelar</button>
+    </div>
+
+    <!-- Paso 3a: RUT pertenece a otro estudiante -->
+    <div id="enroll-step-rut-conflict" class="enroll-card enroll-step" style="display:none">
+      <div class="enroll-icon enroll-icon-info">✗</div>
+      <h2>RUT ya registrado</h2>
+      <p id="enroll-rut-conflict-msg" class="enroll-subtitle"></p>
+      <p class="enroll-subtitle">No es posible continuar con este RUT.</p>
+      <button class="enroll-btn enroll-btn-cancel" onclick="cancelarRegistro()">Cerrar</button>
+    </div>
+
+    <!-- Paso 3b: Advertencia sobrescritura de RUT -->
+    <div id="enroll-step-rut-warning" class="enroll-card enroll-step" style="display:none">
+      <div class="enroll-icon enroll-icon-info">⚠</div>
+      <h2>RUT diferente</h2>
+      <p class="enroll-subtitle">El RUT ingresado es distinto al registrado en el sistema.</p>
+      <p id="enroll-rut-old" class="enroll-subtitle" style="font-size:0.85em;opacity:0.8;"></p>
+      <p id="enroll-rut-new" class="enroll-subtitle" style="font-size:0.85em;opacity:0.8;"></p>
+      <p class="enroll-subtitle">¿Deseas sobrescribir el RUT actual?</p>
+      <div class="enroll-actions">
+        <button class="enroll-btn enroll-btn-primary" onclick="confirmarSobrescribirRut()">Sí, sobrescribir</button>
+        <button class="enroll-btn enroll-btn-cancel" onclick="cancelarRegistro()">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- Paso 3c: Confirmar identidad -->
+    <div id="enroll-step-confirmar" class="enroll-card enroll-step" style="display:none">
+      <div class="enroll-icon enroll-icon-question">?</div>
+      <h2>¿Eres tú?</h2>
+      <p class="enroll-subtitle">Selecciona tu nombre de la lista</p>
+      <div id="enroll-candidatos" class="enroll-candidatos"></div>
+      <button class="enroll-btn enroll-btn-cancel" onclick="cancelarRegistro()">No soy ninguno</button>
+    </div>
+
+    <!-- Paso 3c: Ya tiene huella registrada -->
+    <div id="enroll-step-ya-tiene-huella" class="enroll-card enroll-step" style="display:none">
+      <div class="enroll-icon enroll-icon-info">✗</div>
+      <h2>Ya estás registrado</h2>
+      <p class="enroll-subtitle">Ya tienes una huella registrada en el sistema. Consulta con el administrador si necesitas actualizarla.</p>
+      <button class="enroll-btn enroll-btn-cancel" onclick="cancelarRegistro()">Cerrar</button>
+    </div>
+
+    <!-- Paso 4: Esperando huella para enrolar/actualizar -->
+    <div id="enroll-step-dedo" class="enroll-card enroll-step" style="display:none">
+      <div class="enroll-spinner"></div>
+      <h2>Coloca tu dedo en el sensor</h2>
+      <p id="enroll-dedo-msg" class="enroll-subtitle">Capturando huella...</p>
+    </div>
+
+    <!-- Paso 5: Éxito -->
+    <div id="enroll-step-success" class="enroll-card enroll-step" style="display:none">
+      <div class="enroll-icon enroll-icon-success">✓</div>
+      <h2>¡Listo!</h2>
+      <p id="enroll-success-msg" class="enroll-subtitle">-</p>
+    </div>
+
+  </div>
+  <!-- ===================== /OVERLAY REGISTRO ===================== -->
+
+  <!-- Processing Screen -->
+  <div id="screen-processing" class="screen">
+    <div class="content">
+      <div class="spinner"></div>
+      <h1>Procesando...</h1>
+      <p class="subtitle">Verificando identidad</p>
+    </div>
+  </div>
+
+  <!-- Approved Screen -->
+  <div id="screen-approved" class="screen screen-approved">
+    <div class="content">
+      <div class="checkmark">✓</div>
+      <h1>¡Ticket Aprobado!</h1>
+      <div class="ticket-info">
+        <p class="student-name" id="approved-nombre">-</p>
+        <p class="student-curso">RUN: <span id="approved-run">-</span></p>
+        <p class="student-curso">Curso: <span id="approved-curso">-</span></p>
+        <p class="ration-type" id="approved-racion">-</p>
+        <p class="pae-status" id="approved-pae">-</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rejected Screen -->
+  <div id="screen-rejected" class="screen screen-rejected">
+    <div class="content">
+      <div class="crossmark">✗</div>
+      <h1>Ticket Rechazado</h1>
+      <div class="rejection-info">
+        <p class="rejection-reason" id="rejected-reason">-</p>
+        <p class="student-name" id="rejected-nombre">-</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/renderer.js"></script>
+</body>
+
+</html>

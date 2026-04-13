@@ -1,0 +1,12 @@
+{
+  "name": "totem-digitador",
+  "version": "1.0.0",
+  "description": "Interfaz Electron para Totem Biometrico",
+  "main": "js/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^41.1.0"
+  }
+}
