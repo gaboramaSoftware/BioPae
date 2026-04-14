@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digitador - Totem</title>
+    <link rel="stylesheet" href="AdminAuth.css">
+</head>
+
+<body>
+    <!-- Waiting Screen (Default) -->
+    <div id="screen-waiting" class="screen active">
+        <div class="content">
+            <div class="fingerprint-icon">
+                <svg viewBox="0 0 100 100" width="200" height="200">
+                    <circle cx="50" cy="50" r="45" stroke="white" stroke-width="3" fill="none" />
+                    <image href="./assets/Logo.png" x="0" y="0" width="100" height="100" />
+                </svg>
+            </div>
+            <h1>Coloque su dedo en el sensor</h1>
+            <p class="subtitle">Esperando huella...</p>
+        </div>
+    </div>
+
+    <!-- Processing Screen -->
+    <div id="screen-processing" class="screen">
+        <div class="content">
+            <div class="spinner"></div>
+            <h1>Procesando...</h1>
+            <p class="subtitle">Verificando identidad</p>
+        </div>
+    </div>
+
+    <!-- Approved Screen -->
+    <div id="screen-approved" class="screen screen-approved">
+        <div class="content">
+            <div class="checkmark">✓</div>
+            <h1>¡Ticket Aprobado!</h1>
+            <div class="ticket-info">
+                <p class="student-name" id="approved-nombre">-</p>
+                <p class="student-run">RUN: <span id="approved-run">-</span></p>
+                <p class="student-curso">Curso: <span id="approved-curso">-</span></p>
+                <p class="ration-type" id="approved-racion">-</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rejected Screen -->
+    <div id="screen-rejected" class="screen screen-rejected">
+        <div class="content">
+            <div class="crossmark">✗</div>
+            <h1>Ticket Rechazado</h1>
+            <div class="rejection-info">
+                <p class="rejection-reason" id="rejected-reason">-</p>
+                <p class="student-name" id="rejected-nombre">-</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,32 @@
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# Binarios y compilados
+__pycache__/
+*.pyc
+*.pyd
+build/
+node_modules/
+.npm/
+
+# Datos sensibles o pesados
+*.xlsx
+*.sql
+*.png
+*.txt
+*.log
+*.zip
+*.docx
+*.xlsx
+*.xls
+*.pdf
+
+# Otros archivos de sistema/IDE
+.claude/
+.venv/
+venv/
+*.log
+dist/
+build/
