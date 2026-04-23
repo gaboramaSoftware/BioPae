@@ -1,30 +1,70 @@
 const { app, BrowserWindow, screen, ipcMain } = require('electron');
 const path = require('path');
 const http = require('http');
+const fs   = require('fs');
 const { spawn } = require('child_process');
 
 let mainWindow;
 let pythonProcess = null;
 
 // ============================================
+// DETECCIÓN DINÁMICA DE PYTHON
+// ============================================
+
+/**
+ * Busca el ejecutable de Python en orden de prioridad:
+ * 1. venv del proyecto (dentro de los recursos empaquetados)
+ * 2. Instalaciones estándar de Windows (AppData y Program Files)
+ * 3. Comando "python" del PATH del sistema como último recurso
+ */
+function encontrarPython(raizBackend) {
+    const localAppData = process.env.LOCALAPPDATA || '';
+    const candidatos = [
+        // 1. Python embeddable empaquetado con la app (producción — portable)
+        path.join(raizBackend, 'infra', 'python-embed', 'python.exe'),
+        // 2. Venv local del proyecto (desarrollo)
+        path.join(raizBackend, 'infra', 'venv', 'Scripts', 'python.exe'),
+        path.join(raizBackend, 'venv', 'Scripts', 'python.exe'),
+        // 3. Python instalado en AppData del usuario
+        path.join(localAppData, 'Programs', 'Python', 'Python312', 'python.exe'),
+        path.join(localAppData, 'Programs', 'Python', 'Python311', 'python.exe'),
+        path.join(localAppData, 'Programs', 'Python', 'Python310', 'python.exe'),
+        // 4. Python instalado en Program Files (instalación para todos los usuarios)
+        'C:\\Program Files\\Python312\\python.exe',
+        'C:\\Program Files\\Python311\\python.exe',
+        'C:\\Program Files\\Python310\\python.exe',
+        'C:\\Python312\\python.exe',
+        'C:\\Python311\\python.exe',
+        'C:\\Python310\\python.exe',
+    ];
+
+    for (const ruta of candidatos) {
+        if (ruta && fs.existsSync(ruta)) {
+            console.log(`[MAIN] Python encontrado: ${ruta}`);
+            return ruta;
+        }
+    }
+
+    console.log('[MAIN] Python no encontrado en rutas conocidas, usando "python" del PATH');
+    return 'python';
+}
+
+// ============================================
 // LANZAR SERVIDOR FASTAPI (PYTHON)
 // ============================================
 
 function iniciarServidor() {
-    // Ruta al directorio raíz del proyecto (2 niveles arriba de js/)
-    const proyectoRaiz = path.join(__dirname, '..', '..', '..');
+    // En producción los archivos Python están en process.resourcesPath/backend/
+    // En desarrollo son 3 niveles arriba de js/ (raíz del repositorio)
+    const proyectoRaiz = app.isPackaged
+        ? path.join(process.resourcesPath, 'backend')
+        : path.join(__dirname, '..', '..', '..');
 
-    // Buscar python en las rutas más comunes de Windows
-    const pythonPaths = [
-        'C:\\Users\\fabio\\AppData\\Local\\Programs\\Python\\Python312\\python.exe',
-        'python',
-        'python3'
-    ];
-
-    const pythonExe = pythonPaths[0]; // Usar la ruta directa del sistema
+    const pythonExe = encontrarPython(proyectoRaiz);
 
     console.log('[MAIN] Iniciando servidor FastAPI...');
     console.log('[MAIN] Directorio del proyecto:', proyectoRaiz);
+    console.log('[MAIN] Python:', pythonExe);
 
     pythonProcess = spawn(pythonExe, ['-m', 'uvicorn', 'infra.main:app', '--port', '8080'], {
         cwd: proyectoRaiz,
@@ -155,8 +195,25 @@ ipcMain.on('app:reload', () => { if (mainWindow) mainWindow.reload(); });
 
 ipcMain.handle('auth:login', async (event, args) => {
     const { rut, password } = args || {};
-    if (rut === '11111111' && password === 'admin123') {
-        return { success: true, role: 'admin' };
-    }
-    return { success: false, error: 'Credenciales inválidas' };
+    return new Promise((resolve) => {
+        const payload = JSON.stringify({ rut, password });
+        const options = {
+            hostname: '127.0.0.1',
+            port: 8080,
+            path: '/api/auth/login',
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+        };
+        const req = http.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => { data += chunk; });
+            res.on('end', () => {
+                try { resolve(JSON.parse(data)); }
+                catch { resolve({ success: false, error: 'Error al procesar respuesta' }); }
+            });
+        });
+        req.on('error', () => resolve({ success: false, error: 'Error de conexión con el servidor' }));
+        req.write(payload);
+        req.end();
+    });
 });

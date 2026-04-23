@@ -9,7 +9,25 @@ from core.Domain.Repository.RegistroRepository import (
 )
 from core.Domain.Repository.UserRepository import SessionLocal
 from core.Services.ticketServices.horarioService import obtener_tipo_racion, descripcion_horario
-from infra.DB.modelos import Usuario, Curso, Ticket
+from infra.DB.modelos import Usuario, Curso, Ticket, RacionesConfig
+
+
+def _sort_key_curso_chileno(usuario):
+    """Orden educacional chileno: Pre-Kinder → Kinder → 1°..8° Básico → 1°..4° Medio,
+    luego letra A-Z, luego nombre A-Z."""
+    c = usuario.curso
+    if not c:
+        return (9999, '', (usuario.nombre or '').lower())
+    nivel  = c.nivel  or ''
+    numero = c.numero or 0
+    letra  = (c.letra or '').upper()
+    nombre = (usuario.nombre or '').lower()
+    if   nivel == 'Pre-Kinder': nivel_num = 0
+    elif nivel == 'Kinder':     nivel_num = 1
+    elif nivel == 'Basico':     nivel_num = 1 + numero
+    elif nivel == 'Medio':      nivel_num = 9 + numero
+    else:                       nivel_num = 9999
+    return (nivel_num, letra, nombre)
 
 
 class RegistrosController:
@@ -31,13 +49,29 @@ class RegistrosController:
             if not usuario.es_pae:
                 return {"estado": "Rechazado", "mensaje": "El alumno no pertenece al plan PAE"}
 
-            ya_tiene = db.query(Ticket).filter(
+            # Verificar raciones globales disponibles
+            config = db.query(RacionesConfig).filter(RacionesConfig.tipo == tipo_solicitud).first()
+            if config and config.total > 0:
+                usadas = db.query(Ticket).filter(
+                    Ticket.tipo_ticket == tipo_solicitud,
+                    Ticket.fecha_emision == date.today()
+                ).count()
+                if usadas >= config.total:
+                    tipo_label = "desayunos" if tipo_solicitud == "desayuno" else "almuerzos"
+                    return {"estado": "SinRaciones", "tipo_racion": tipo_solicitud,
+                            "mensaje": f"Ya no quedan {tipo_label} disponibles"}
+
+            # Verificar límite diario del alumno (1 desayuno, 2 almuerzos)
+            tickets_hoy = db.query(Ticket).filter(
                 Ticket.usuario_id == usuario_id,
                 Ticket.tipo_ticket == tipo_solicitud,
                 Ticket.fecha_emision == date.today()
-            ).first()
-            if ya_tiene:
-                return {"estado": "Rechazado", "mensaje": f"Ya se emitió un ticket de {tipo_solicitud} hoy"}
+            ).count()
+            limite = 2 if tipo_solicitud == "almuerzo" else 1
+            if tickets_hoy >= limite:
+                primer_nombre = usuario.nombre.strip().split()[0]
+                return {"estado": "SinRaciones", "tipo_racion": tipo_solicitud,
+                        "mensaje": f"{primer_nombre} ya verificado"}
 
             registro = crear_registro_evento(usuario_id, self.totem_id, "Aprobado", tipo_solicitud)
             if not registro:
@@ -60,7 +94,7 @@ class RegistrosController:
     def exportar_excel(self) -> dict:
         db = SessionLocal()
         try:
-            tickets = db.query(Ticket).order_by(Ticket.fecha_emision.desc()).all()
+            tickets = db.query(Ticket).order_by(Ticket.fecha_emision.desc(), Ticket.hora_emision.desc()).all()
 
             wb = openpyxl.Workbook()
             ws = wb.active
@@ -91,7 +125,7 @@ class RegistrosController:
     def exportar_alumnos_excel(self) -> dict:
         db = SessionLocal()
         try:
-            usuarios = db.query(Usuario).order_by(Usuario.id).all()
+            usuarios = sorted(db.query(Usuario).all(), key=_sort_key_curso_chileno)
 
             wb = openpyxl.Workbook()
             ws = wb.active

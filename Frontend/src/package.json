@@ -4,9 +4,67 @@
   "description": "Interfaz Electron para Totem Biometrico",
   "main": "js/main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "build:portable": "electron-builder --win --config.win.target=portable"
   },
   "dependencies": {
     "electron": "^41.1.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "cl.piamarta.biopae",
+    "productName": "BioPAE Totem",
+    "directories": {
+      "output": "../../dist"
+    },
+    "files": [
+      "js/**/*",
+      "index.html",
+      "index/**/*",
+      "style.css",
+      "styles/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../../infra",
+        "to": "backend/infra",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/asio-1.30.2/**",
+          "!**/DB/backups/**",
+          "!**/DB/biopae.db",
+          "!**/venv/**"
+        ]
+      },
+      {
+        "from": "../../core",
+        "to": "backend/core",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BioPAE Totem"
+    }
   }
 }

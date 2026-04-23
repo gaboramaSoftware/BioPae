@@ -3,6 +3,9 @@
 venv/
 env/
 
+# Python embeddable (artefacto de build — generado por scripts/prepare_python_embed.ps1)
+infra/python-embed/
+
 # Binarios y compilados
 __pycache__/
 *.pyc
@@ -10,6 +13,15 @@ __pycache__/
 build/
 node_modules/
 .npm/
+
+# Base de datos (nunca commitear — puede sobreescribir datos reales)
+*.db
+*.db-wal
+*.db-shm
+*.db.bak
+*.db.bak*
+*.db.backup*
+infra/DB/backups/
 
 # Datos sensibles o pesados
 *.xlsx

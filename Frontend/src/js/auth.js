@@ -25,15 +25,17 @@ document.addEventListener('DOMContentLoaded', () => {
             ocultarError();
 
             try {
-                // Usar IPC de Electron si está disponible
+                // Usar IPC de Electron si está disponible, si no llamar al backend directamente
                 let resultado;
                 if (window.totem && window.totem.login) {
                     resultado = await window.totem.login(rut, password);
                 } else {
-                    // Fallback para desarrollo en navegador
-                    resultado = (rut === '11111111' && password === 'admin123')
-                        ? { success: true }
-                        : { success: false, error: 'Credenciales inválidas' };
+                    const res = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ rut, password })
+                    });
+                    resultado = await res.json();
                 }
 
                 if (resultado.success) {

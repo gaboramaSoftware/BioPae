@@ -42,7 +42,8 @@ const screens = {
     waiting: document.getElementById('screen-waiting'),
     processing: document.getElementById('screen-processing'),
     approved: document.getElementById('screen-approved'),
-    rejected: document.getElementById('screen-rejected')
+    rejected: document.getElementById('screen-rejected'),
+    sinRaciones: document.getElementById('screen-sin-raciones')
 };
 
 // ============================================
@@ -85,14 +86,22 @@ function mostrarAprobado(data) {
     if (paeEl) paeEl.textContent = data?.es_pae ? 'PAE' : 'No PAE';
 
     showScreen('approved');
-    autoReturnToWaiting(800);
+    autoReturnToWaiting(3000);
 }
 
 function mostrarRechazado(razon, nombre = '') {
     document.getElementById('rejected-reason').textContent = razon;
     document.getElementById('rejected-nombre').textContent = nombre;
     showScreen('rejected');
-    autoReturnToWaiting(800);
+    autoReturnToWaiting(3000);
+}
+
+function mostrarSinRaciones(mensaje, tipo_racion) {
+    const tipoLabel = tipo_racion === 'desayuno' ? 'Desayuno' : 'Almuerzo';
+    document.getElementById('sin-raciones-titulo').textContent = `Sin ${tipoLabel}s`;
+    document.getElementById('sin-raciones-msg').textContent = mensaje;
+    showScreen('sinRaciones');
+    autoReturnToWaiting(4000);
 }
 
 // ============================================
@@ -119,6 +128,8 @@ async function activarSensor() {
         const data = JSON.parse(event.data);
         if (data.estado === 'Aprobado') {
             mostrarAprobado({ ...data.alumno, tipo_racion: data.tipo_racion });
+        } else if (data.estado === 'SinRaciones') {
+            mostrarSinRaciones(data.mensaje, data.tipo_racion);
         } else {
             mostrarRechazado(data.mensaje, data.alumno?.nombre || '');
         }
@@ -134,7 +145,6 @@ async function activarSensor() {
     ws.onclose = () => {
         if (!responded) {
             activeWs = null;
-            // Debounce: esperar 500ms antes de reconectar para evitar cadena de conexiones
             setTimeout(() => activarSensor(), 500);
         }
     };
@@ -143,6 +153,11 @@ async function activarSensor() {
 // ============================================
 // INICIALIZACION
 // ============================================
+
+function _mostrarAdvertenciaSensor(visible) {
+    const el = document.getElementById('sensor-warning');
+    if (el) el.style.display = visible ? 'block' : 'none';
+}
 
 async function inicializar() {
     showScreen('waiting');
@@ -230,6 +245,7 @@ let enrollCursosData = [];
 let capturedHuellaHex = null;
 let enrollRutIngresado = null;
 let pendingEnrollConfirm = null;
+let pendingAdminReenroll = null;
 
 function mostrarEnrollStep(stepId) {
     document.querySelectorAll('.enroll-step').forEach(s => s.style.display = 'none');
@@ -254,6 +270,20 @@ function cancelarRegistro() {
 
 async function iniciarRegistro() {
     if (activeWs) { activeWs.onclose = null; activeWs.close(); activeWs = null; }
+
+    // Verificar sensor antes de iniciar registro
+    try {
+        const res = await fetch(`${API_URL}/api/sensor/status`);
+        const data = await res.json();
+        if (!data.available) {
+            _mostrarAdvertenciaSensor(true);
+            return;
+        }
+    } catch {
+        _mostrarAdvertenciaSensor(true);
+        return;
+    }
+    _mostrarAdvertenciaSensor(false);
 
     mostrarEnrollStep('enroll-step-scanning');
 
@@ -280,12 +310,12 @@ async function iniciarRegistro() {
             } catch {}
             mostrarEnrollStep('enroll-step-ya-registrado');
         } else {
-            mostrarFormularioRegistro();
+            mostrarEnrollStep('enroll-step-alumno-no-en-sistema');
         }
     };
 
-    ws.onerror = () => { if (!responded) { enrollWs = null; cancelarRegistro(); } };
-    ws.onclose = () => { if (!responded) { enrollWs = null; cancelarRegistro(); } };
+    ws.onerror = () => { if (!responded) { enrollWs = null; mostrarEnrollStep('enroll-step-huella-no-encontrada'); } };
+    ws.onclose = () => { if (!responded) { enrollWs = null; mostrarEnrollStep('enroll-step-huella-no-encontrada'); } };
 }
 
 async function iniciarReEnrolamiento() {
@@ -392,7 +422,9 @@ async function handleEnrollForm(event) {
         const conHuella = candidatos.filter(u => u.tiene_huella);
 
         if (sinHuella.length === 0 && conHuella.length > 0) {
-            // Todos los candidatos ya tienen huella → bloquear
+            // Todos los candidatos ya tienen huella → bloquear, pero permitir override de admin
+            pendingAdminReenroll = conHuella;
+            if (conHuella.length === 1) enrollCurrentUserId = conHuella[0].id;
             mostrarEnrollStep('enroll-step-ya-tiene-huella');
             return;
         }
@@ -513,4 +545,60 @@ async function _procederEnrolamiento(userId, nombre) {
 
     ws.onerror = () => { if (!responded) { enrollWs = null; cancelarRegistro(); } };
     ws.onclose = () => { if (!responded) { enrollWs = null; cancelarRegistro(); } };
+}
+
+// ============================================
+// ADMIN OVERRIDE: forzar re-enrolamiento desde tótem
+// ============================================
+
+function mostrarAuthAdmin() {
+    document.getElementById('admin-auth-rut').value = '';
+    document.getElementById('admin-auth-pass').value = '';
+    document.getElementById('admin-auth-error').style.display = 'none';
+    mostrarEnrollStep('enroll-step-admin-auth');
+}
+
+async function confirmarAuthAdmin(event) {
+    event.preventDefault();
+    const rut      = document.getElementById('admin-auth-rut').value.trim();
+    const password = document.getElementById('admin-auth-pass').value;
+    const errorEl  = document.getElementById('admin-auth-error');
+    errorEl.style.display = 'none';
+
+    try {
+        const res = await fetch(`${API_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rut, password })
+        });
+        const data = await res.json();
+        if (!data.success) {
+            errorEl.style.display = 'block';
+            return;
+        }
+    } catch {
+        errorEl.textContent = 'Error de conexión.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    // Auth OK → proceder con re-enrolamiento
+    if (pendingAdminReenroll && pendingAdminReenroll.length > 1) {
+        const contenedor = document.getElementById('enroll-candidatos');
+        contenedor.innerHTML = pendingAdminReenroll.map(u => `
+            <button class="enroll-btn enroll-btn-primary enroll-candidato"
+                    onclick="seleccionarCandidatoAdmin(${u.id})">
+                ${u.nombre} — ${u.curso}
+            </button>
+        `).join('');
+        mostrarEnrollStep('enroll-step-confirmar');
+    } else {
+        iniciarReEnrolamiento();
+    }
+    pendingAdminReenroll = null;
+}
+
+function seleccionarCandidatoAdmin(userId) {
+    enrollCurrentUserId = userId;
+    iniciarReEnrolamiento();
 }

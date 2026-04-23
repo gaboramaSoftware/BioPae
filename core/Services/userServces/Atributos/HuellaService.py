@@ -42,6 +42,7 @@ class HuellaService:
         self.sensor = None
         self.init_lock = threading.Lock()       # Solo para init/close
         self.capture_lock = threading.Lock()    # Solo para captura/identificación
+        self._huellas_cargadas = False          # True solo cuando la RAM del hardware tiene huellas
 
         if sensorWrapper:
             self.sensor = sensorWrapper.Sensor()
@@ -63,7 +64,38 @@ class HuellaService:
             exito = self.sensor.init_sensor()
             if exito:
                 return True, "Lector inicializado correctamente."
+            # Sensor no disponible: la RAM del hardware fue limpiada (desconexión USB)
+            self._huellas_cargadas = False
             return False, "Error al inicializar el hardware del lector."
+
+    def verificar_conexion_hardware(self) -> bool:
+        """
+        Detecta si el hardware físico está conectado forzando un close + init real.
+        Adquiere capture_lock para no interferir con una captura en curso.
+        Si no puede obtener el lock en 3s, asume que el sensor está ocupado (conectado).
+        Si está conectado, recarga las huellas en RAM para restaurar el estado.
+        """
+        got_capture = self.capture_lock.acquire(timeout=3)
+        if not got_capture:
+            # El sensor está siendo usado activamente → está conectado
+            return True
+        try:
+            with self.init_lock:
+                if not self.sensor:
+                    return False
+                try:
+                    self.sensor.close_sensor()
+                    conectado = self.sensor.init_sensor()
+                except Exception as e:
+                    logger.warning(f"[SENSOR CHECK] Error al verificar hardware: {e}")
+                    return False
+        finally:
+            self.capture_lock.release()
+
+        if conectado:
+            self.cargar_huellas_iniciales()
+
+        return conectado
 
     def cerrar(self):
         with self.init_lock:
@@ -84,20 +116,26 @@ class HuellaService:
             return False, None
 
     def identificar_usuario(self) -> tuple[int, float]:
-        """Captura bloqueante + identificación en un solo intento. El frontend maneja reintentos."""
+        """Captura bloqueante + identificación en un solo intento. El frontend maneja reintentos.
+
+        Retorna:
+            (user_id > 0, score) → usuario identificado correctamente
+            (0, 0.0)             → huella capturada pero no encontrada en el sistema
+            (-1, 0.0)            → captura fallida (ruido, contacto parcial) → rechazo silencioso
+        """
         with self.capture_lock:
             if not self.sensor:
                 return -1, 0.0
             exito, data_lista = self.sensor.capture_template()
             if not exito or not data_lista:
-                logger.warning("[IDENT] No se pudo capturar huella")
+                logger.warning("[IDENT] No se pudo capturar huella (ruido o contacto parcial)")
                 return -1, 0.0
             encontrado, user_id, score = self.sensor.db_identify(data_lista)
             if encontrado:
                 logger.info(f"[IDENT] Usuario {user_id} identificado (score={score})")
                 return user_id, float(score)
-            logger.warning("[IDENT] Huella capturada pero no reconocida")
-            return -1, 0.0
+            logger.warning("[IDENT] Huella capturada pero no reconocida en el sistema")
+            return 0, 0.0
 
     def capturar_y_identificar(self) -> tuple[int, float, bytes | None]:
         """Captura bloqueante + intento de identificación. Retorna bytes aunque no identifique."""
@@ -189,6 +227,8 @@ class HuellaService:
                     )
 
             logger.info(f"[STARTUP] Carga completa: {cargadas} OK, {fallidas} fallidas.")
+            if cargadas > 0 or fallidas == 0:
+                self._huellas_cargadas = True
             return {"cargadas": cargadas, "fallidas": fallidas}
         finally:
             db.close()

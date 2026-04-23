@@ -20,6 +20,9 @@
       </div>
       <h1>Coloque su dedo en el sensor</h1>
       <p class="subtitle">Esperando huella...</p>
+      <p id="sensor-warning" style="display:none; margin-top:18px; font-size:0.95rem; color:#f87171; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); border-radius:10px; padding:10px 18px;">
+        ⚠ Por favor conectar huellero ZKTeco al sistema para que funcione correctamente
+      </p>
     </div>
   </div>
 
@@ -50,6 +53,25 @@
       <h2>Coloca tu dedo en el sensor</h2>
       <p class="enroll-subtitle">Verificando si ya estás en el sistema...</p>
       <button class="enroll-btn enroll-btn-cancel" onclick="cancelarRegistro()">Cancelar</button>
+    </div>
+
+    <!-- Paso 1a: Huella no detectada por el hardware -->
+    <div id="enroll-step-huella-no-encontrada" class="enroll-card enroll-step" style="display:none">
+      <div class="enroll-icon enroll-icon-info">✗</div>
+      <h2>HUELLA NO ENCONTRADA</h2>
+      <p class="enroll-subtitle">Intente nuevamente</p>
+      <button class="enroll-btn enroll-btn-cancel" onclick="cancelarRegistro()">Aceptar</button>
+    </div>
+
+    <!-- Paso 1b: Huella leída pero alumno no existe en el sistema -->
+    <div id="enroll-step-alumno-no-en-sistema" class="enroll-card enroll-step" style="display:none">
+      <div class="enroll-icon enroll-icon-question">?</div>
+      <h2>ALUMNO NO SE ENCUENTRA EN EL SISTEMA</h2>
+      <p class="enroll-subtitle">¿Desea registrarlo?</p>
+      <div class="enroll-actions">
+        <button class="enroll-btn enroll-btn-primary" onclick="mostrarFormularioRegistro()">Sí</button>
+        <button class="enroll-btn enroll-btn-cancel" onclick="cancelarRegistro()">No</button>
+      </div>
     </div>
 
     <!-- Paso 2a: Alumno ya registrado -->
@@ -127,8 +149,25 @@
     <div id="enroll-step-ya-tiene-huella" class="enroll-card enroll-step" style="display:none">
       <div class="enroll-icon enroll-icon-info">✗</div>
       <h2>Ya estás registrado</h2>
-      <p class="enroll-subtitle">Ya tienes una huella registrada en el sistema. Consulta con el administrador si necesitas actualizarla.</p>
-      <button class="enroll-btn enroll-btn-cancel" onclick="cancelarRegistro()">Cerrar</button>
+      <p class="enroll-subtitle">Ya tienes una huella registrada en el sistema.</p>
+      <div class="enroll-actions">
+        <button class="enroll-btn enroll-btn-primary" onclick="mostrarAuthAdmin()">Actualizar como administrador</button>
+        <button class="enroll-btn enroll-btn-cancel" onclick="cancelarRegistro()">Cerrar</button>
+      </div>
+    </div>
+
+    <!-- Paso 3d: Autenticación de administrador para forzar re-enrolamiento -->
+    <div id="enroll-step-admin-auth" class="enroll-card enroll-step" style="display:none">
+      <div class="enroll-icon enroll-icon-question">🔑</div>
+      <h2>Acceso de administrador</h2>
+      <p class="enroll-subtitle">Ingresa las credenciales para actualizar la huella</p>
+      <form class="enroll-form" onsubmit="confirmarAuthAdmin(event)">
+        <input type="text" id="admin-auth-rut" class="enroll-input" placeholder="Usuario (RUT)" required autocomplete="off">
+        <input type="password" id="admin-auth-pass" class="enroll-input" placeholder="Contraseña" required>
+        <p id="admin-auth-error" style="color:#ff6b6b;display:none;font-size:0.85em;margin-top:-8px;">Credenciales incorrectas.</p>
+        <button type="submit" class="enroll-btn enroll-btn-primary">Confirmar</button>
+      </form>
+      <button class="enroll-btn enroll-btn-cancel" onclick="mostrarEnrollStep('enroll-step-ya-tiene-huella')">Volver</button>
     </div>
 
     <!-- Paso 4: Esperando huella para enrolar/actualizar -->
@@ -180,6 +219,17 @@
       <div class="rejection-info">
         <p class="rejection-reason" id="rejected-reason">-</p>
         <p class="student-name" id="rejected-nombre">-</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sin Raciones Screen -->
+  <div id="screen-sin-raciones" class="screen screen-sin-raciones">
+    <div class="content">
+      <div class="warning-mark">⚠</div>
+      <h1 id="sin-raciones-titulo">Sin Raciones</h1>
+      <div class="sin-raciones-info">
+        <p class="sin-raciones-msg" id="sin-raciones-msg">-</p>
       </div>
     </div>
   </div>

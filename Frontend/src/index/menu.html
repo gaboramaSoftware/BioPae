@@ -30,6 +30,12 @@
                 <a href="javascript:void(0)" onclick="showSection('asistencia')">
                     <span class="icon">📅</span> Asistencia
                 </a>
+                <a href="javascript:void(0)" onclick="openSettingsModal()">
+                    <span class="icon">⚙️</span> Tótems
+                </a>
+                <a href="javascript:void(0)" onclick="openCredencialesModal()">
+                    <span class="icon">🔑</span> Credenciales
+                </a>
             </nav>
             <a class="nav-back" href="../index.html"
                onclick="window.location.href='../index.html'"
@@ -96,43 +102,73 @@
                         <div class="stat-icon terminal">🖥️</div>
                         <div class="stat-info">
                             <h3>Terminales</h3>
-                            <p class="stat-value">1</p>
+                            <p class="stat-value" id="count-terminales">-</p>
                             <span class="stat-label">Activos</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="card table-card">
+                <!-- Card: Gestión de Raciones JUNAEB -->
+                <div class="card raciones-card">
                     <div class="card-header">
-                        <h3>Registros Recientes <small id="dashboard-records-hint" style="font-weight:normal; font-size:0.75rem; color:#888;">(últimos 20)</small></h3>
-                        <div class="card-actions">
-                            <button class="btn-exportar" onclick="openExportModal()">
-                                <span class="icon">📤</span> Exportar a Excel
-                            </button>
-                            <div class="search-box">
-                                <input type="text" id="search-input" placeholder="Buscar por nombre o RUN..."
-                                    onkeyup="filterDashboardTable()">
+                        <h3>Raciones JUNAEB</h3>
+                        <small style="color:#888;font-size:0.75rem;">Total asignado por JUNAEB · 0 = sin límite</small>
+                    </div>
+                    <div class="raciones-grid">
+                        <!-- Desayuno -->
+                        <div class="racion-item">
+                            <div class="racion-header">
+                                <span class="racion-icon">☕</span>
+                                <span class="racion-title">Desayunos</span>
+                            </div>
+                            <div class="racion-barra-wrap">
+                                <div class="racion-barra" id="barra-desayuno"></div>
+                            </div>
+                            <p class="racion-contador" id="contador-desayuno">— / —</p>
+                            <div class="racion-edit">
+                                <input type="number" id="input-total-desayuno" class="racion-input" min="0" placeholder="Total asignado">
+                                <button class="btn-guardar-racion" onclick="guardarRacion('desayuno')">Guardar</button>
+                            </div>
+                        </div>
+                        <!-- Almuerzo -->
+                        <div class="racion-item">
+                            <div class="racion-header">
+                                <span class="racion-icon">🍽️</span>
+                                <span class="racion-title">Almuerzos</span>
+                            </div>
+                            <div class="racion-barra-wrap">
+                                <div class="racion-barra" id="barra-almuerzo"></div>
+                            </div>
+                            <p class="racion-contador" id="contador-almuerzo">— / —</p>
+                            <div class="racion-edit">
+                                <input type="number" id="input-total-almuerzo" class="racion-input" min="0" placeholder="Total asignado">
+                                <button class="btn-guardar-racion" onclick="guardarRacion('almuerzo')">Guardar</button>
                             </div>
                         </div>
                     </div>
-                    <div class="table-responsive">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Estudiante</th>
-                                    <th>Curso</th>
-                                    <th>Ración</th>
-                                    <th>Fecha</th>
-                                    <th>Hora</th>
-                                </tr>
-                            </thead>
-                            <tbody id="records-body">
-                                <tr>
-                                    <td colspan="5" class="text-center">Cargando datos...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                </div>
+
+                <div class="card" style="padding:0;">
+                    <div class="card-header" style="padding: 0.85rem 1.25rem;">
+                        <h3>Raciones por Curso <small id="chart-periodo-label" style="font-weight:normal; font-size:0.75rem; color:#888;">— Hoy</small></h3>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <select id="chart-periodo-filter" onchange="renderGraficoCursosFiltrado()"
+                                    style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);
+                                           border-radius:8px;color:#f1f5f9;padding:0.35rem 0.65rem;
+                                           font-size:0.8rem;cursor:pointer;outline:none;">
+                                <option value="hoy">Hoy</option>
+                                <option value="semana">Esta semana</option>
+                                <option value="mes">Este mes</option>
+                            </select>
+                            <select id="chart-nivel-filter" onchange="renderGraficoCursosFiltrado()"
+                                    style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);
+                                           border-radius:8px;color:#f1f5f9;padding:0.35rem 0.65rem;
+                                           font-size:0.8rem;cursor:pointer;outline:none;">
+                                <option value="">Todos los cursos</option>
+                            </select>
+                        </div>
                     </div>
+                    <div id="chart-cursos-container" style="padding: 1rem 1.25rem 0.75rem; min-height: 180px;"></div>
                 </div>
             </div>
 
@@ -179,8 +215,12 @@
                             <thead>
                                 <tr>
                                     <th>RUN</th>
-                                    <th>Nombre Completo</th>
-                                    <th>Curso</th>
+                                    <th class="th-sortable" onclick="setSortEstudiantes('nombre')">
+                                        Nombre Completo <span id="sort-icon-est-nombre" class="sort-icon">⇅</span>
+                                    </th>
+                                    <th class="th-sortable" onclick="setSortEstudiantes('curso')">
+                                        Curso <span id="sort-icon-est-curso" class="sort-icon">⇅</span>
+                                    </th>
                                     <th>PAE</th>
                                     <th>Acciones</th>
                                 </tr>
@@ -205,6 +245,9 @@
                                 style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:#f1f5f9;padding:0.45rem 0.75rem;font-size:0.83rem;cursor:pointer;">
                                 <option value="">Todos los cursos</option>
                             </select>
+                            <button class="btn-exportar" onclick="exportarAsistenciaExcel()">
+                                <span class="icon">📤</span> Exportar a Excel
+                            </button>
                             <button class="btn-secondary" onclick="mesAnterior()">← Anterior</button>
                             <span id="asistencia-mes-label" style="font-weight:600; padding:0 14px; font-size:0.95rem;"></span>
                             <button class="btn-secondary" onclick="mesSiguiente()">Siguiente →</button>
@@ -238,10 +281,16 @@
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th>Estudiante</th>
-                                    <th>Curso</th>
+                                    <th class="th-sortable" onclick="setSortRegistros('nombre')">
+                                        Estudiante <span id="sort-icon-rep-nombre" class="sort-icon">⇅</span>
+                                    </th>
+                                    <th class="th-sortable" onclick="setSortRegistros('curso')">
+                                        Curso <span id="sort-icon-rep-curso" class="sort-icon">⇅</span>
+                                    </th>
                                     <th>Ración</th>
-                                    <th>Fecha</th>
+                                    <th class="th-sortable" onclick="setSortRegistros('fecha')">
+                                        Fecha <span id="sort-icon-rep-fecha" class="sort-icon">⇅</span>
+                                    </th>
                                     <th>Hora</th>
                                 </tr>
                             </thead>
@@ -265,6 +314,9 @@
                 <button class="modal-close" onclick="closeEnrollModal()">✕</button>
             </div>
             <div class="modal-body">
+                <div id="enroll-duplicado-notice" style="display:none; background:rgba(234,179,8,0.12); border:1px solid rgba(234,179,8,0.4); border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:0.85rem; color:#fbbf24;">
+                    ⚠️ Este alumno ya está registrado. Puedes corregir su RUT antes de continuar.
+                </div>
                 <form id="enrollForm" onsubmit="handleEnrollStudent(event)">
                     <div class="form-group">
                         <label for="enroll-run">RUN (sin puntos ni guión)</label>
@@ -369,6 +421,22 @@
                         </div>
                     </div>
                 </div>
+                <div class="observaciones-section">
+                    <label class="observaciones-label" for="stats-observaciones">
+                        <span class="icon">🔍</span> Observaciones
+                    </label>
+                    <textarea
+                        id="stats-observaciones"
+                        class="observaciones-textarea"
+                        maxlength="1000"
+                        placeholder="Ej: alumno vegano, alérgico al gluten..."
+                        rows="3"
+                    ></textarea>
+                    <div class="observaciones-footer">
+                        <span id="stats-obs-counter" class="observaciones-counter">0 / 1000</span>
+                        <button class="btn-guardar-obs" onclick="guardarObservaciones()">Guardar</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -446,7 +514,8 @@
                     </div>
                     <div class="modal-actions">
                         <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancelar</button>
-                        <button type="submit" class="btn-primary" onclick="closeEditModal()">Guardar Cambios</button>
+                        <button type="submit" class="btn-secondary">Guardar Cambios</button>
+                        <button type="button" class="btn-primary" onclick="openReescribirHuellaModal()">Reescribir Huella</button>
                     </div>
                 </form>
                 <div class="modal-divider"></div>
@@ -485,9 +554,15 @@
             <div class="modal-body">
                 <p>¿Está seguro que desea eliminar <strong>todos los registros</strong>?</p>
                 <p class="warning-text">Esta acción eliminará permanentemente el historial de raciones. Los alumnos, cursos y tickets no serán afectados. No se puede deshacer.</p>
+                <div class="form-group" style="margin-top:14px;">
+                    <label style="font-size:0.82rem;">Escribe <strong>BORRAR</strong> para confirmar</label>
+                    <input type="text" id="confirm-borrar-registros" placeholder="BORRAR"
+                        oninput="document.getElementById('btn-confirmar-borrar-registros').disabled = this.value !== 'BORRAR'"
+                        style="margin-top:6px;">
+                </div>
                 <div class="modal-actions">
                     <button type="button" class="btn-secondary" onclick="closeDeleteRegistrosModal()">Cancelar</button>
-                    <button type="button" class="btn-danger btn-danger-inline" onclick="handleDeleteRegistros()">Eliminar registros</button>
+                    <button type="button" id="btn-confirmar-borrar-registros" class="btn-danger btn-danger-inline" onclick="handleDeleteRegistros()" disabled>Eliminar registros</button>
                 </div>
             </div>
         </div>
@@ -503,9 +578,15 @@
             <div class="modal-body">
                 <p>¿Está seguro que desea eliminar <strong>todos los alumnos</strong> del sistema?</p>
                 <p class="warning-text">Esta acción eliminará permanentemente todos los alumnos y sus huellas. Los cursos, tickets y raciones no serán afectados. No se puede deshacer.</p>
+                <div class="form-group" style="margin-top:14px;">
+                    <label style="font-size:0.82rem;">Escribe <strong>BORRAR</strong> para confirmar</label>
+                    <input type="text" id="confirm-borrar-alumnos" placeholder="BORRAR"
+                        oninput="document.getElementById('btn-confirmar-borrar-alumnos').disabled = this.value !== 'BORRAR'"
+                        style="margin-top:6px;">
+                </div>
                 <div class="modal-actions">
                     <button type="button" class="btn-secondary" onclick="closeDeleteAllModal()">Cancelar</button>
-                    <button type="button" class="btn-danger btn-danger-inline" onclick="handleDeleteAll()">Eliminar todo</button>
+                    <button type="button" id="btn-confirmar-borrar-alumnos" class="btn-danger btn-danger-inline" onclick="handleDeleteAll()" disabled>Eliminar todo</button>
                 </div>
             </div>
         </div>
@@ -520,13 +601,20 @@
             </div>
             <div class="modal-body">
                 <p style="margin-bottom: 16px; color: #888; font-size: 0.85rem;">
-                    Selecciona los filtros que deseas aplicar. Deja un campo en blanco para incluir todos.
+                    Selecciona los filtros que deseas aplicar. Sin selección equivale a incluir todos.
                 </p>
                 <div class="form-group">
-                    <label for="export-curso">Curso</label>
-                    <select id="export-curso">
-                        <option value="">Todos los cursos</option>
-                    </select>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <label>Cursos</label>
+                        <div style="display:flex;gap:8px;">
+                            <button type="button" class="btn-sm btn-edit-totem" onclick="seleccionarTodosCursosExport(true)">Todos</button>
+                            <button type="button" class="btn-sm" style="background:rgba(255,255,255,0.06);color:#94a3b8;" onclick="seleccionarTodosCursosExport(false)">Ninguno</button>
+                        </div>
+                    </div>
+                    <div id="export-cursos-checks"
+                        style="max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;">
+                        <p style="color:#64748b;font-size:0.8rem;">Cargando cursos...</p>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="export-racion">Ración</label>
@@ -543,6 +631,17 @@
                     </div>
                 </div>
                 <div id="export-preview" style="font-size:0.82rem; color:#888; margin-top:8px; min-height:18px;"></div>
+                <div class="form-group">
+                    <label>Formato de exportación</label>
+                    <div style="display:flex;gap:10px;margin-top:6px;">
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;">
+                            <input type="radio" name="export-formato" value="xlsx" checked> Excel (.xlsx)
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;">
+                            <input type="radio" name="export-formato" value="csv"> Power BI (.csv)
+                        </label>
+                    </div>
+                </div>
                 <div class="modal-actions">
                     <button type="button" class="btn-secondary" onclick="closeExportModal()">Cancelar</button>
                     <button type="button" class="btn-primary" onclick="confirmarExportacion()">
@@ -553,8 +652,188 @@
         </div>
     </div>
 
-    <script src="chart.main.js"></script>
-    <script src="app.js"></script>
+    <!-- Modal: Exportar Lista JUNAEB -->
+    <div id="exportStudentsModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Exportar Lista de Alumnos</h2>
+                <button class="modal-close" onclick="closeExportStudentsModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <label>Cursos a exportar</label>
+                        <div style="display:flex;gap:8px;">
+                            <button type="button" class="btn-sm btn-edit-totem" onclick="seleccionarTodosCursos(true)">Todos</button>
+                            <button type="button" class="btn-sm" style="background:rgba(255,255,255,0.06);color:#94a3b8;" onclick="seleccionarTodosCursos(false)">Ninguno</button>
+                        </div>
+                    </div>
+                    <div id="export-students-cursos"
+                        style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;">
+                        <p style="color:#64748b;font-size:0.8rem;">Cargando cursos...</p>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top:14px;">
+                    <label>Formato de exportación</label>
+                    <div style="display:flex;gap:14px;margin-top:6px;">
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;">
+                            <input type="radio" name="export-students-formato" value="xlsx" checked> Excel (.xlsx)
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;">
+                            <input type="radio" name="export-students-formato" value="csv"> Power BI (.csv)
+                        </label>
+                    </div>
+                </div>
+
+                <div id="export-students-preview" style="font-size:0.82rem;color:#94a3b8;margin-top:8px;min-height:18px;"></div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeExportStudentsModal()">Cancelar</button>
+                    <button type="button" class="btn-primary" onclick="confirmarExportStudents()">
+                        <span class="icon">📤</span> Exportar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Configuración de Tótems -->
+    <!-- Modal: Configuración de Tótems -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>⚙️ Configuración de Tótems</h2>
+                <button class="modal-close" onclick="closeSettingsModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:0.82rem;color:#94a3b8;margin-bottom:14px;">
+                    El panel agrega datos de todos los tótems configurados. Las operaciones de enrolamiento y hardware siempre usan el tótem actual (<strong id="url-actual"></strong>).
+                </p>
+
+                <div id="totems-lista" style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;"></div>
+
+                <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
+                    <p style="font-size:0.82rem;font-weight:600;margin-bottom:10px;">Agregar tótem</p>
+                    <div class="form-group">
+                        <label>Nombre</label>
+                        <input type="text" id="nuevo-totem-nombre" placeholder="Ej: Tótem 2">
+                    </div>
+                    <div class="form-group">
+                        <label>URL</label>
+                        <input type="text" id="nuevo-totem-url" placeholder="Ej: http://192.168.1.11:8080">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="closeSettingsModal()">Cerrar</button>
+                        <button type="button" class="btn-primary" onclick="agregarTotem()">Agregar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Cambiar Credenciales -->
+    <div id="credencialesModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>🔑 Cambiar Credenciales</h2>
+                <button class="modal-close" onclick="closeCredencialesModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="credenciales-msg" style="display:none;padding:8px 12px;border-radius:6px;font-size:0.82rem;margin-bottom:14px;"></div>
+                <div class="form-group">
+                    <label>RUT actual</label>
+                    <input type="text" id="cred-rut-actual" placeholder="RUT del usuario actual">
+                </div>
+                <div class="form-group">
+                    <label>Nuevo usuario (RUT)</label>
+                    <input type="text" id="cred-nuevo-rut" placeholder="Ej: 12345678">
+                </div>
+                <div class="form-group">
+                    <label>Nueva contraseña</label>
+                    <input type="password" id="cred-nueva-password" placeholder="Mínimo 6 caracteres">
+                </div>
+                <div class="form-group">
+                    <label>Confirmar nueva contraseña</label>
+                    <input type="password" id="cred-confirmar-password" placeholder="Repetir nueva contraseña">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeCredencialesModal()">Cerrar</button>
+                    <button type="button" class="btn-primary" onclick="guardarCredenciales()">Guardar cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Reescribir Huella -->
+    <div id="reescribirHuellaModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>✋ Reescribir Huella</h2>
+                <button class="modal-close" onclick="closeReescribirHuellaModal()">✕</button>
+            </div>
+            <div class="modal-body">
+
+                <!-- Info del estudiante -->
+                <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:14px 16px; margin-bottom:20px;">
+                    <p style="font-weight:600; font-size:0.95rem; margin-bottom:6px;" id="rhf-nombre">-</p>
+                    <p style="font-size:0.8rem; color:#94a3b8;" id="rhf-run">RUN: -</p>
+                    <p style="font-size:0.8rem; color:#94a3b8;" id="rhf-curso">Curso: -</p>
+                </div>
+
+                <!-- Paso: listo para iniciar -->
+                <div id="rhf-step-ready">
+                    <p style="font-size:0.85rem; color:#94a3b8; margin-bottom:16px; text-align:center;">
+                        Presiona el botón y luego coloca el dedo en el sensor para capturar una nueva huella.
+                    </p>
+                    <p id="rhf-sensor-hint" style="display:none; font-size:0.8rem; color:#f87171; margin-bottom:10px; text-align:center;"></p>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="closeReescribirHuellaModal()">Cancelar</button>
+                        <button type="button" id="rhf-btn-iniciar" class="btn-primary" onclick="iniciarCapturaHuellaAdmin()">Iniciar captura</button>
+                    </div>
+                </div>
+
+                <!-- Paso: capturando -->
+                <div id="rhf-step-capturing" style="display:none; flex-direction:column; align-items:center; gap:16px; text-align:center;">
+                    <div class="rhf-spinner"></div>
+                    <p style="font-weight:600; color:#f1f5f9;">Coloca el dedo en el sensor</p>
+                    <p id="rhf-capturing-msg" style="font-size:0.85rem; color:#94a3b8;">Esperando huella dactilar...</p>
+                    <button type="button" class="btn-secondary" onclick="cancelarCapturaHuella()">Cancelar</button>
+                </div>
+
+                <!-- Paso: éxito -->
+                <div id="rhf-step-success" style="display:none; flex-direction:column; align-items:center; gap:16px; text-align:center;">
+                    <div style="font-size:3rem; color:#22c55e; line-height:1;">✓</div>
+                    <p style="font-weight:600; color:#f1f5f9;">¡Huella registrada!</p>
+                    <p id="rhf-success-msg" style="font-size:0.85rem; color:#94a3b8;">La huella ha sido actualizada correctamente.</p>
+                    <button type="button" class="btn-primary" onclick="closeReescribirHuellaModal()">Cerrar</button>
+                </div>
+
+                <!-- Paso: error -->
+                <div id="rhf-step-error" style="display:none; flex-direction:column; align-items:center; gap:16px; text-align:center;">
+                    <div style="font-size:3rem; color:#ef4444; line-height:1;">✗</div>
+                    <p style="font-weight:600; color:#f1f5f9;">Error al capturar</p>
+                    <p id="rhf-error-msg" style="font-size:0.85rem; color:#94a3b8;">No se pudo capturar la huella.</p>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="closeReescribirHuellaModal()">Cancelar</button>
+                        <button type="button" class="btn-primary" onclick="iniciarCapturaHuellaAdmin()">Reintentar</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mostrar URL actual en el modal de settings
+        document.addEventListener('DOMContentLoaded', () => {
+            const el = document.getElementById('url-actual');
+            if (el) el.textContent = window.location.origin;
+        });
+    </script>
+
+    <script src="chart.main.js?v=7"></script>
+    <script src="app.js?v=7"></script>
 </body>
 
 </html>

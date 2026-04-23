@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cambiar Credenciales - Biopae</title>
+    <link rel="stylesheet" href="../styles/styles.css">
+    <style>
+        .msg-box {
+            display: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            margin-bottom: 1rem;
+        }
+        .msg-box.ok  { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+        .msg-box.err { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+        .msg-box.visible { display: block; }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            text-decoration: none;
+            margin-bottom: 1.4rem;
+        }
+        .back-link:hover { color: var(--text-main); }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <a class="back-link" href="auth.html">← Volver al inicio de sesión</a>
+
+        <div class="logo">
+            <div class="logo-icon">
+                <image src="../assets/Logo.png" alt="Logo" class="logo-image"
+                    style="width: 60px; height: 60px;"/>
+            </div>
+            <h1>Credenciales</h1>
+            <p>Cambia tu usuario y contraseña de acceso</p>
+        </div>
+
+        <div id="msg" class="msg-box"></div>
+
+        <form class="auth-form" id="credForm">
+            <div class="input-group">
+                <label><i>👤</i> RUT actual</label>
+                <input type="text" id="cred-rut-actual" class="input-field" placeholder="RUT del usuario actual" required>
+            </div>
+
+            <div class="input-group">
+                <label><i>👤</i> Nuevo usuario (RUT)</label>
+                <input type="text" id="cred-nuevo-rut" class="input-field" placeholder="Ej: 12345678" required>
+            </div>
+
+            <div class="input-group">
+                <label><i>🔑</i> Nueva contraseña</label>
+                <div class="password-wrapper">
+                    <input type="password" id="cred-nueva-password" class="input-field" placeholder="Mínimo 6 caracteres" required>
+                    <button type="button" class="password-toggle" onclick="toggleVer('cred-nueva-password', this)">👁️</button>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label><i>🔑</i> Confirmar nueva contraseña</label>
+                <div class="password-wrapper">
+                    <input type="password" id="cred-confirmar-password" class="input-field" placeholder="Repetir contraseña" required>
+                    <button type="button" class="password-toggle" onclick="toggleVer('cred-confirmar-password', this)">👁️</button>
+                </div>
+            </div>
+
+            <button type="submit" class="auth-button" id="submitBtn">Guardar cambios</button>
+        </form>
+    </div>
+
+    <script>
+        function toggleVer(inputId, btn) {
+            const inp = document.getElementById(inputId);
+            const esPassword = inp.type === 'password';
+            inp.type = esPassword ? 'text' : 'password';
+            btn.textContent = esPassword ? '🙈' : '👁️';
+        }
+
+        function mostrarMsg(texto, ok) {
+            const el = document.getElementById('msg');
+            el.textContent = texto;
+            el.className = 'msg-box visible ' + (ok ? 'ok' : 'err');
+        }
+
+        document.getElementById('credForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const rutActual         = document.getElementById('cred-rut-actual').value.trim();
+            const nuevoRut          = document.getElementById('cred-nuevo-rut').value.trim();
+            const nuevaPassword     = document.getElementById('cred-nueva-password').value;
+            const confirmarPassword = document.getElementById('cred-confirmar-password').value;
+            const btn = document.getElementById('submitBtn');
+
+            if (nuevaPassword !== confirmarPassword) {
+                return mostrarMsg('Las contraseñas nuevas no coinciden.', false);
+            }
+            if (nuevaPassword.length < 6) {
+                return mostrarMsg('La nueva contraseña debe tener al menos 6 caracteres.', false);
+            }
+
+            btn.textContent = 'Guardando...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/auth/credenciales', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rut_actual: rutActual, nuevo_rut: nuevoRut, nueva_password: nuevaPassword })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    mostrarMsg('Credenciales actualizadas correctamente. Redirigiendo...', true);
+                    document.getElementById('credForm').reset();
+                    setTimeout(() => { window.location.href = 'auth.html'; }, 2000);
+                } else {
+                    const errMsg = Array.isArray(data.detail)
+                        ? data.detail.map(e => e.msg || JSON.stringify(e)).join(' | ')
+                        : (data.detail || data.error || 'Error al actualizar credenciales.');
+                    mostrarMsg(errMsg, false);
+                    btn.textContent = 'Guardar cambios';
+                    btn.disabled = false;
+                }
+            } catch {
+                mostrarMsg('Error de conexión con el servidor.', false);
+                btn.textContent = 'Guardar cambios';
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

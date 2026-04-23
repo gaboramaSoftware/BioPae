@@ -224,10 +224,16 @@ h1 {
 }
 
 /* Pantalla Aprobado */
+.screen.screen-approved {
+    background: linear-gradient(135deg, #052e16 0%, #064e3b 60%, #065f46 100%);
+    transition: background 0.2s ease;
+}
+
 .screen-approved .checkmark {
     font-size: 6rem;
-    color: var(--secondary-color);
+    color: #4ade80;
     margin-bottom: 1rem;
+    text-shadow: 0 0 30px rgba(74, 222, 128, 0.6);
 }
 
 .ticket-info {
@@ -242,6 +248,10 @@ h1 {
 .student-run, .student-curso { font-size: 1.2rem; color: var(--text-muted); }
 
 /* Pantalla Rechazado */
+.screen.screen-rejected {
+    background: linear-gradient(135deg, #450a0a 0%, #7f1d1d 60%, #991b1b 100%);
+}
+
 .screen-rejected .crossmark {
     font-size: 6rem;
     color: var(--danger-color);
@@ -253,6 +263,33 @@ h1 {
     padding: 2rem;
     border-radius: 16px;
     border: 1px solid var(--danger-color);
+}
+
+/* Pantalla Sin Raciones */
+.screen-sin-raciones {
+    background: linear-gradient(135deg, #451a03 0%, #78350f 60%, #92400e 100%);
+}
+
+.screen-sin-raciones .warning-mark {
+    font-size: 6rem;
+    color: #fbbf24;
+    margin-bottom: 1rem;
+    text-shadow: 0 0 30px rgba(251, 191, 36, 0.6);
+}
+
+.sin-raciones-info {
+    background: rgba(251, 191, 36, 0.1);
+    padding: 2rem;
+    border-radius: 16px;
+    border: 1px solid #fbbf24;
+    min-width: 300px;
+    text-align: center;
+}
+
+.sin-raciones-msg {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #fde68a;
 }
 
 /* ===================== BOTÓN REGISTRARSE ===================== */

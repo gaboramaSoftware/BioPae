@@ -13,7 +13,8 @@ class Usuario(Base):
     nombre = Column(String, index=True)
     rut = Column(String(12), unique=True, index=True)
     es_pae = Column(Boolean, default=False)
-    
+    observaciones = Column(String(1000), nullable=True)
+
     curso_id = Column(Integer, ForeignKey("cursos.id"), index=True)
     estado_id = Column(Integer, ForeignKey("estados_estudiante.id"), index=True)
     
@@ -65,6 +66,18 @@ class Registro(Base): # Singular es mejor práctica
     totem = relationship("Totem", back_populates="registros")
     ticket = relationship("Ticket", back_populates="registro", uselist=False) # 1:1 con el ticket que generó
 
+class AdminConfig(Base):
+    __tablename__ = "admin_config"
+    id = Column(Integer, primary_key=True)
+    rut = Column(String, nullable=False)
+    password_hash = Column(String, nullable=False)
+
+class RacionesConfig(Base):
+    __tablename__ = "raciones_config"
+    id = Column(Integer, primary_key=True)
+    tipo = Column(String(20), unique=True, nullable=False)  # "desayuno" o "almuerzo"
+    total = Column(Integer, default=0, nullable=False)      # 0 = sin límite configurado
+
 class Ticket(Base):
     __tablename__ = "tickets"
     id = Column(Integer, primary_key=True, index=True)
@@ -74,8 +87,7 @@ class Ticket(Base):
     fecha_emision = Column(Date)
     hora_emision = Column(Time)
 
-    # Restricción: Un usuario solo un ticket de un tipo por día
-    __table_args__ = (UniqueConstraint('usuario_id', 'fecha_emision', 'tipo_ticket', name='uq_usuario_dia_tipo'),)
+    # Sin restricción única: el límite se maneja en la lógica de negocio (RegistrosController)
 
     usuario = relationship("Usuario", back_populates="tickets")
     registro = relationship("Registro", back_populates="ticket")
