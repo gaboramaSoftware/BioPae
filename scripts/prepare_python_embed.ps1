@@ -77,12 +77,47 @@ Write-Host "[6/6] Instalando paquetes desde requirements.txt..." -ForegroundColo
     -r $REQ_FILE `
     2>&1 | Write-Host
 
+# --- 8. Copiar sensorWrapper y DLLs de ZKTeco --------------------------------
+# Se colocan junto a python.exe para que:
+#   - El .pyd sea importable (el .pth ya tiene "." = directorio de python.exe en sys.path)
+#   - Las DLLs sean encontradas por Windows al cargar el .pyd
+Write-Host ""
+Write-Host "Copiando sensorWrapper y DLLs de ZKTeco..." -ForegroundColor Cyan
+
+$PYD_SRC = Join-Path $ROOT "sensorWrapper.cp312-win_amd64.pyd"
+$DLL_DIR  = Join-Path $ROOT "infra\Hardware\bin"
+
+if (-not (Test-Path $PYD_SRC)) {
+    Write-Error "No se encontro sensorWrapper.cp312-win_amd64.pyd en $ROOT"
+    exit 1
+}
+if (-not (Test-Path $DLL_DIR)) {
+    Write-Error "No se encontro infra\Hardware\bin\ en $ROOT"
+    exit 1
+}
+
+Copy-Item $PYD_SRC $EMBED_DIR -Force
+Copy-Item "$DLL_DIR\libzkfp.dll"          $EMBED_DIR -Force
+Copy-Item "$DLL_DIR\libcrypto-3-x64.dll"  $EMBED_DIR -Force
+Copy-Item "$DLL_DIR\libssl-3-x64.dll"     $EMBED_DIR -Force
+
+Write-Host "  -> sensorWrapper.cp312-win_amd64.pyd" -ForegroundColor Gray
+Write-Host "  -> libzkfp.dll" -ForegroundColor Gray
+Write-Host "  -> libcrypto-3-x64.dll" -ForegroundColor Gray
+Write-Host "  -> libssl-3-x64.dll" -ForegroundColor Gray
+
 # --- Verificacion final -------------------------------------------------------
 Write-Host ""
 Write-Host "Verificando instalacion..." -ForegroundColor Cyan
-$testResult = & $pythonExe -c "import fastapi, uvicorn, sqlalchemy, openpyxl; print('OK')" 2>&1
 
-if ($testResult -eq "OK") {
+$testPaquetes = & $pythonExe -c "import fastapi, uvicorn, sqlalchemy, openpyxl; print('OK')" 2>&1
+$testSensor   = & $pythonExe -c "import sensorWrapper; print('OK')" 2>&1
+
+$errores = @()
+if ($testPaquetes -ne "OK") { $errores += "Paquetes pip: $testPaquetes" }
+if ($testSensor   -ne "OK") { $errores += "sensorWrapper: $testSensor" }
+
+if ($errores.Count -eq 0) {
     Write-Host ""
     Write-Host "[OK] Python embeddable listo en: $EMBED_DIR" -ForegroundColor Green
     Write-Host "     Siguiente paso: cd Frontend/src" -ForegroundColor Green
@@ -90,6 +125,6 @@ if ($testResult -eq "OK") {
 } else {
     Write-Host ""
     Write-Host "[ERROR] Verificacion fallida:" -ForegroundColor Red
-    Write-Host $testResult -ForegroundColor Red
+    foreach ($e in $errores) { Write-Host "  $e" -ForegroundColor Red }
     exit 1
 }

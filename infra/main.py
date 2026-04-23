@@ -64,6 +64,8 @@ async def _tarea_backup_periodico():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Al arrancar el servidor, inyecta las huellas de SQLite en la RAM del sensor."""
+    from core.Domain.Repository.IniciarDB import buscarDB
+    logger.info(f"[STARTUP] Base de datos: {buscarDB()}")
     logger.info("[STARTUP] Iniciando servidor. Cargando huellas persistidas en RAM del sensor...")
     exito, msg = hardware_service.inicializar()
     if exito:

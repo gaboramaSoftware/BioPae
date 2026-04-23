@@ -5,21 +5,29 @@ from sqlalchemy import create_engine
 #funcion para buscar la base de datos en el sistema
 def buscarDB():
     nombreDB = 'biopae.db'
-    # Subimos 3 niveles desde core/Domain/Repository hasta Pydigitador
-    rutaRaiz = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
-    print(f"escaneando carpetas dentro de {rutaRaiz}")
 
-    #buscamos por las subcarpetas del proyecto (ignorando carpetas ocultas como .claude, .git)
+    # Producción: Electron pasa BIOPAE_DATA_DIR apuntando a %APPDATA%\BioPAE\
+    # Esa carpeta es escribible y sobrevive actualizaciones del ejecutable.
+    data_dir = os.environ.get('BIOPAE_DATA_DIR')
+    if data_dir:
+        os.makedirs(data_dir, exist_ok=True)
+        ruta = os.path.join(data_dir, nombreDB)
+        print(f"[DB] Modo produccion. Ruta: {ruta}")
+        return ruta
+
+    # Desarrollo: buscar el archivo caminando desde la raiz del proyecto
+    rutaRaiz = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
+    print(f"[DB] Modo desarrollo. Escaneando carpetas dentro de {rutaRaiz}")
+
     for raiz, directorios, archivos in os.walk(rutaRaiz):
         directorios[:] = [d for d in directorios if not d.startswith('.')]
         if nombreDB in archivos:
             rutaFinal = os.path.join(raiz, nombreDB)
-            print(f"Base de datos encontrada en {rutaFinal}")
+            print(f"[DB] Encontrada en {rutaFinal}")
             return rutaFinal
-        
-    # Si no la encuentra, la creamos en la raiz por defecto para evitar que devuelva None
+
     rutaPorDefecto = os.path.join(rutaRaiz, nombreDB)
-    print(f"No se encontró. Se creará una nueva en {rutaPorDefecto}")
+    print(f"[DB] No encontrada. Se creara en {rutaPorDefecto}")
     return rutaPorDefecto
 
 def _migrarDB(rutaDB: str):

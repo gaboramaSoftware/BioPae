@@ -6,6 +6,14 @@ logger = logging.getLogger(__name__)
 ruta_hardware = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../infra/Hardware"))
 
 if os.name == 'nt':
+    # Producción: las DLLs están en python-embed/ junto a python.exe
+    directorio_python = os.path.dirname(sys.executable)
+    try:
+        os.add_dll_directory(directorio_python)
+    except Exception:
+        pass
+
+    # Desarrollo: las DLLs están en infra/Hardware/bin/
     try:
         os.add_dll_directory(ruta_hardware)
         for subfolder in ['bin', 'x64lib']:
@@ -13,7 +21,7 @@ if os.name == 'nt':
             if os.path.exists(dll_path):
                 os.add_dll_directory(dll_path)
     except Exception as e:
-        print(f"[ERROR] No se pudo registrar el directorio de DLLs: {e}")
+        print(f"[PRECAUCIÓN] No se pudo registrar Hardware/: {e}")
 
 if ruta_hardware not in sys.path:
     sys.path.append(ruta_hardware)

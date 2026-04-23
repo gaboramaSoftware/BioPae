@@ -62,14 +62,23 @@ function iniciarServidor() {
 
     const pythonExe = encontrarPython(proyectoRaiz);
 
+    // En producción la DB va a %APPDATA%\BioPAE\ (carpeta escribible).
+    // En desarrollo no se setea → IniciarDB.py usa el comportamiento actual.
+    const dataDir = app.isPackaged ? app.getPath('userData') : null;
+
     console.log('[MAIN] Iniciando servidor FastAPI...');
     console.log('[MAIN] Directorio del proyecto:', proyectoRaiz);
     console.log('[MAIN] Python:', pythonExe);
+    if (dataDir) console.log('[MAIN] BIOPAE_DATA_DIR:', dataDir);
 
     pythonProcess = spawn(pythonExe, ['-m', 'uvicorn', 'infra.main:app', '--port', '8080'], {
         cwd: proyectoRaiz,
         stdio: ['ignore', 'pipe', 'pipe'],
-        shell: false
+        shell: false,
+        env: {
+            ...process.env,
+            ...(dataDir ? { BIOPAE_DATA_DIR: dataDir } : {})
+        }
     });
 
     pythonProcess.stdout.on('data', (data) => {
