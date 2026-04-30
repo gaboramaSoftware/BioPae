@@ -13,7 +13,7 @@ class Usuario(Base):
     nombre = Column(String, index=True)
     rut = Column(String(12), unique=True, index=True)
     es_pae = Column(Boolean, default=False)
-    observaciones = Column(String(1000), nullable=True)
+    observaciones = Column(String(500), nullable=True)
 
     curso_id = Column(Integer, ForeignKey("cursos.id"), index=True)
     estado_id = Column(Integer, ForeignKey("estados_estudiante.id"), index=True)
@@ -77,6 +77,12 @@ class RacionesConfig(Base):
     id = Column(Integer, primary_key=True)
     tipo = Column(String(20), unique=True, nullable=False)  # "desayuno" o "almuerzo"
     total = Column(Integer, default=0, nullable=False)      # 0 = sin límite configurado
+
+class PeerNode(Base):
+    __tablename__ = "peer_nodes"
+    id = Column(Integer, primary_key=True)
+    nombre = Column(String(100), nullable=False)
+    url = Column(String(255), unique=True, nullable=False)
 
 class Ticket(Base):
     __tablename__ = "tickets"

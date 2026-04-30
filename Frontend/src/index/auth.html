@@ -26,24 +26,38 @@
             <p>Ingrese sus credenciales para continuar</p>
         </div>
 
+        <div id="fp-auth-bar" style="display:flex;align-items:center;gap:10px;padding:10px 14px;
+             background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+             border-radius:10px;margin-bottom:16px;font-size:0.82rem;color:#94a3b8;">
+            <div id="fp-auth-dot" style="width:10px;height:10px;border-radius:50%;
+                 background:#22c55e;flex-shrink:0;animation:fp-pulse 1.5s infinite;"></div>
+            <span id="fp-auth-status">Coloca el dedo en el sensor para acceder como admin</span>
+        </div>
+        <style>
+            @keyframes fp-pulse {
+                0%,100% { opacity:1; transform:scale(1); }
+                50%      { opacity:.4; transform:scale(1.3); }
+            }
+        </style>
+
         <form class="auth-form" id="loginForm">
             <div class="input-group">
                 <label for="username">
-                    <i>👤</i>
+                    <i><ion-icon name="person"></ion-icon></i>
                     Usuario
                 </label>
                 <input 
                     type="text" 
                     id="username" 
                     class="input-field" 
-                    placeholder="usuario@ejemplo.com"
+                    placeholder="rut del ADMIN sin puntos"
                     required
                 >
             </div>
 
             <div class="input-group">
                 <label for="password">
-                    <i>🔑</i>
+                    <i><ion-icon name="key"></ion-icon></i>
                     Contraseña
                 </label>
                 <div class="password-wrapper">
@@ -55,7 +69,7 @@
                         required
                     >
                     <button type="button" class="password-toggle" id="togglePassword">
-                        👁️
+                        <ion-icon name="eye"></ion-icon>
                     </button>
                 </div>
                 <div class="remember-forgot">
@@ -70,10 +84,9 @@
             <button type="submit" class="auth-button" id="submitBtn">
                 Iniciar Sesión
             </button>
-            <a href="credenciales.html" style="display:block;text-align:center;margin-top:1rem;font-size:0.85rem;color:var(--text-muted);text-decoration:none;">
-                Cambiar credenciales de acceso
-            </a>
     </div>
     <script src="../js/auth.js"></script>
+    <script type="module" src="https://unpkg.com/ionicons@7/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7/dist/ionicons/ionicons.js"></script>
 </body>
 </html>

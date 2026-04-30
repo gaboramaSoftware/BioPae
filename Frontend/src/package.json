@@ -8,10 +8,9 @@
     "build": "electron-builder --win",
     "build:portable": "electron-builder --win --config.win.target=portable"
   },
-  "dependencies": {
-    "electron": "^41.1.0"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "electron": "^41.1.0",
     "electron-builder": "^25.1.8"
   },
   "build": {
@@ -25,7 +24,8 @@
       "index.html",
       "index/**/*",
       "style.css",
-      "styles/**/*"
+      "styles/**/*",
+      "assets/**/*"
     ],
     "extraResources": [
       {

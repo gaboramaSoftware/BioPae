@@ -130,13 +130,19 @@ class HuellaService:
             (user_id > 0, score) → usuario identificado correctamente
             (0, 0.0)             → huella capturada pero no encontrada en el sistema
             (-1, 0.0)            → captura fallida (ruido, contacto parcial) → rechazo silencioso
+            (-2, 0.0)            → hardware desconectado físicamente
         """
         with self.capture_lock:
             if not self.sensor:
                 return -1, 0.0
             exito, data_lista = self.sensor.capture_template()
             if not exito or not data_lista:
-                logger.warning("[IDENT] No se pudo capturar huella (ruido o contacto parcial)")
+                # Distinguir "sin dedo" de "hardware desconectado":
+                # si init_sensor falla aquí, el dispositivo USB ya no responde.
+                if not self.sensor.init_sensor():
+                    logger.warning("[IDENT] Hardware desconectado detectado tras fallo de captura")
+                    self._huellas_cargadas = False
+                    return -2, 0.0
                 return -1, 0.0
             encontrado, user_id, score = self.sensor.db_identify(data_lista)
             if encontrado:

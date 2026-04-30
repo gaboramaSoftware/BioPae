@@ -5,11 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>Panel de Administración - Digitador Piamarta</title>
-    <link rel="stylesheet" href="../styles/menuStyle.css">
+    <link rel="stylesheet" href="../styles/menuStyle.css?v=11">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 </head>
 
 <body>
+    <div class="sidebar-overlay" onclick="closeSidebar()"></div>
     <div class="app-container">
         <!-- Sidebar -->
         <aside class="sidebar">
@@ -19,22 +21,34 @@
             </div>
             <nav>
                 <a href="javascript:void(0)" class="active" onclick="showSection('dashboard')">
-                    <span class="icon">📊</span> Dashboard
+                    <span class="icon">
+                        <ion-icon name="bar-chart"></ion-icon>
+                    </span> Dashboard
                 </a>
                 <a href="javascript:void(0)" onclick="showSection('students')">
-                    <span class="icon">👥</span> Estudiantes
+                    <span class="icon">
+                        <ion-icon name="people"></ion-icon>
+                    </span> Estudiantes
                 </a>
                 <a href="javascript:void(0)" onclick="showSection('reports')">
-                    <span class="icon">📋</span> Informes
+                    <span class="icon">
+                        <ion-icon name="clipboard"></ion-icon>
+                    </span> Informes
                 </a>
                 <a href="javascript:void(0)" onclick="showSection('asistencia')">
-                    <span class="icon">📅</span> Asistencia
+                    <span class="icon">
+                        <ion-icon name="calendar-number-outline"></ion-icon>
+                    </span> Asistencia
                 </a>
-                <a href="javascript:void(0)" onclick="openSettingsModal()">
-                    <span class="icon">⚙️</span> Tótems
+                <a href="javascript:void(0)" onclick="openAuthGateModal()">
+                    <span class="icon">
+                        <ion-icon name="settings"></ion-icon>
+                    </span> Tótems
                 </a>
                 <a href="javascript:void(0)" onclick="openCredencialesModal()">
-                    <span class="icon">🔑</span> Credenciales
+                    <span class="icon">
+                        <ion-icon name="key"></ion-icon>
+                    </span> Credenciales
                 </a>
             </nav>
             <a class="nav-back" href="../index.html"
@@ -42,7 +56,9 @@
                style="border: 2px solid; border-radius: 
                5px; padding: 5px; margin: 20px; display: block;
                text-align: center; color: white;">
-                <span class="icon">←</span> Volver al inicio
+                <span class="icon">
+                    <ion-icon name="arrow-back-circle"></ion-icon>
+                </span> Volver al inicio
             </a>
             <div class="status-box">
                 <div class="status-indicator online"></div>
@@ -53,13 +69,18 @@
         <!-- Main Content -->
         <main class="main-content">
             <header>
+                <button class="hamburger-btn" onclick="toggleSidebar()">
+                    <ion-icon name="menu"></ion-icon>
+                </button>
                 <div class="header-title">
                     <h1 id="page-title">Dashboard</h1>
                     <span class="date-display" id="current-date">Cargando fecha...</span>
                 </div>
-                <div class="header-actions">
-                    <button class="btn-refresh" onclick="refreshData()">
-                        <span class="icon">🔄</span> Actualizar
+                <div class="header-actions" style="color: #fbbf24;">
+                    <button class="btn-refresh" onclick="refreshData()" style="color: #fbbf24;">
+                        <span class="icon" style="color: #fbbf24;">
+                            <ion-icon name="sync-circle"></ion-icon>
+                        </span> Actualizar
                     </button>
                     <div class="user-profile">
                         <span>Admin</span>
@@ -75,7 +96,9 @@
             <div id="dashboard" class="section active">
                 <div class="stats-grid">
                     <div class="card stat-card">
-                        <div class="stat-icon breakfast">☕</div>
+                        <div class="stat-icon breakfast">
+                            <ion-icon name="cafe"></ion-icon>
+                        </div>
                         <div class="stat-info">
                             <h3>Desayunos</h3>
                             <p class="stat-value" id="count-breakfast">0</p>
@@ -83,7 +106,9 @@
                         </div>
                     </div>
                     <div class="card stat-card">
-                        <div class="stat-icon lunch">🍽️</div>
+                        <div class="stat-icon lunch">
+                            <i class="fa-solid fa-utensils"></i>
+                        </div>
                         <div class="stat-info">
                             <h3>Almuerzos</h3>
                             <p class="stat-value" id="count-lunch">0</p>
@@ -91,7 +116,9 @@
                         </div>
                     </div>
                     <div class="card stat-card">
-                        <div class="stat-icon total">📝</div>
+                        <div class="stat-icon total">
+                            <ion-icon name="nutrition"></ion-icon>
+                        </div>
                         <div class="stat-info">
                             <h3>Total Raciones</h3>
                             <p class="stat-value" id="count-total">0</p>
@@ -99,7 +126,9 @@
                         </div>
                     </div>
                     <div class="card stat-card">
-                        <div class="stat-icon terminal">🖥️</div>
+                        <div class="stat-icon terminal">
+                            <ion-icon name="radio"></ion-icon>
+                        </div>
                         <div class="stat-info">
                             <h3>Terminales</h3>
                             <p class="stat-value" id="count-terminales">-</p>
@@ -118,7 +147,9 @@
                         <!-- Desayuno -->
                         <div class="racion-item">
                             <div class="racion-header">
-                                <span class="racion-icon">☕</span>
+                                <span class="racion-icon">
+                                    <ion-icon name="cafe"></ion-icon>
+                                </span>
                                 <span class="racion-title">Desayunos</span>
                             </div>
                             <div class="racion-barra-wrap">
@@ -133,7 +164,9 @@
                         <!-- Almuerzo -->
                         <div class="racion-item">
                             <div class="racion-header">
-                                <span class="racion-icon">🍽️</span>
+                                <span class="racion-icon">
+                                 <i class="fa-solid fa-utensils"></i>
+                                </span>
                                 <span class="racion-title">Almuerzos</span>
                             </div>
                             <div class="racion-barra-wrap">
@@ -175,27 +208,48 @@
             <!-- Students Section -->
             <div id="students" class="section">
                 <div class="students-actions-bar">
-                    <button class="btn-primary" onclick="openEnrollModal()">
-                        <span class="icon">➕</span> Enrolar Estudiante
+                    <button class="btn-actions-toggle" onclick="toggleCardPanel(this)">
+                        <ion-icon name="menu-outline"></ion-icon> Acciones
                     </button>
-                    <button class="btn-secondary" onclick="document.getElementById('import-junaeb-file').click()">
-                        <span class="icon">📥</span> Importar Lista JUNAEB
-                    </button>
-                    <input type="file" id="import-junaeb-file" accept=".xlsx,.xls"
-                           style="display:none" onchange="importarJUNAEB(this)">
-                    <button class="btn-secondary" onclick="exportarListaJUNAEB()">
-                        <span class="icon">📤</span> Exportar Lista JUNAEB
-                    </button>
-                    <span id="import-status" style="display:none" class="import-status"></span>
-                    <button class="btn-danger btn-danger-inline" onclick="openDeleteAllModal()">
-                        <span class="icon">🗑️</span> Eliminar todos
-                    </button>
+                    <div class="actions-panel">
+                        <button class="btn-primary" onclick="openEnrollModal()">
+                            <span class="icon">
+                                <ion-icon name="person-add"></ion-icon>
+                            </span> Enrolar Estudiante
+                        </button>
+                        <button class="btn-secondary" onclick="openEnrollAdminModal()">
+                            <span class="icon">
+                                <ion-icon name="shield-checkmark"></ion-icon>
+                            </span> Enrolar Admin
+                        </button>
+                        <button class="btn-exportar" onclick="document.getElementById('import-junaeb-file').click()">
+                            <span class="icon">
+                                <ion-icon name="arrow-down-circle"></ion-icon>
+                            </span> Importar Lista JUNAEB
+                        </button>
+                        <input type="file" id="import-junaeb-file" accept=".xlsx,.xls"
+                               style="display:none" onchange="importarJUNAEB(this)">
+                        <button class="btn-exportar" onclick="exportarListaJUNAEB()">
+                            <span class="icon">
+                                <ion-icon name="arrow-up-circle"></ion-icon>
+                            </span> Exportar Lista JUNAEB
+                        </button>
+                        <span id="import-status" style="display:none" class="import-status"></span>
+                        <button class="btn-danger btn-danger-inline" onclick="openDeleteAllModal()">
+                            <span class="icon">
+                                <ion-icon name="trash-bin"></ion-icon>
+                            </span> Eliminar todos
+                        </button>
+                    </div>
                 </div>
 
                 <div class="card table-card">
                     <div class="card-header">
                         <h3>Gestión de Estudiantes</h3>
-                        <div class="card-header-filters">
+                        <button class="btn-card-toggle" onclick="toggleCardPanel(this)">
+                            <ion-icon name="chevron-down"></ion-icon>
+                        </button>
+                        <div class="card-header-filters card-collapsible">
                             <div class="filter-group">
                                 <select id="nivel-filter" onchange="filterStudentsByCourse()">
                                     <option value="">Todos los niveles</option>
@@ -240,17 +294,24 @@
                 <div class="card table-card">
                     <div class="card-header">
                         <h3>Grilla de Asistencia JUNAEB</h3>
-                        <div class="card-actions">
+                        <button class="btn-card-toggle" onclick="toggleCardPanel(this)">
+                            <ion-icon name="chevron-down"></ion-icon>
+                        </button>
+                        <div class="card-actions card-collapsible">
                             <select id="asistencia-curso-filter" onchange="filtrarAsistenciaCurso()"
                                 style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:#f1f5f9;padding:0.45rem 0.75rem;font-size:0.83rem;cursor:pointer;">
                                 <option value="">Todos los cursos</option>
                             </select>
                             <button class="btn-exportar" onclick="exportarAsistenciaExcel()">
-                                <span class="icon">📤</span> Exportar a Excel
+                                <span class="icon"><ion-icon name="download"></ion-icon></span> Exportar a Excel
                             </button>
-                            <button class="btn-secondary" onclick="mesAnterior()">← Anterior</button>
+                            <button class="btn-secondary" onclick="mesAnterior()">
+                                <ion-icon name="caret-back-outline"></ion-icon>
+                            </button>
                             <span id="asistencia-mes-label" style="font-weight:600; padding:0 14px; font-size:0.95rem;"></span>
-                            <button class="btn-secondary" onclick="mesSiguiente()">Siguiente →</button>
+                            <button class="btn-secondary" onclick="mesSiguiente()">
+                                <ion-icon name="caret-forward-outline"></ion-icon>
+                            </button>
                         </div>
                     </div>
                     <div class="table-responsive" id="asistencia-container" style="overflow-x:auto;">
@@ -264,12 +325,19 @@
                 <div class="card table-card">
                     <div class="card-header">
                         <h3>Registros Recientes</h3>
-                        <div class="card-actions">
+                        <button class="btn-card-toggle" onclick="toggleCardPanel(this)">
+                            <ion-icon name="chevron-down"></ion-icon>
+                        </button>
+                        <div class="card-actions card-collapsible">
                             <button class="btn-exportar" onclick="openExportModal()">
-                                <span class="icon">📤</span> Exportar a Excel
+                                <span class="icon">
+                                    <ion-icon name="download"></ion-icon>
+                                </span> Exportar a Excel
                             </button>
                             <button class="btn-danger btn-danger-inline" onclick="openDeleteRegistrosModal()">
-                                <span class="icon">🗑️</span> Eliminar Registros
+                                <span class="icon">
+                                 <ion-icon name="download"></ion-icon>
+                                </span> Eliminar Registros
                             </button>
                             <div class="search-box">
                                 <input type="text" id="search-reports-input" placeholder="Buscar por nombre o RUN..."
@@ -315,7 +383,7 @@
             </div>
             <div class="modal-body">
                 <div id="enroll-duplicado-notice" style="display:none; background:rgba(234,179,8,0.12); border:1px solid rgba(234,179,8,0.4); border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:0.85rem; color:#fbbf24;">
-                    ⚠️ Este alumno ya está registrado. Puedes corregir su RUT antes de continuar.
+                    <ion-icon name="warning"></ion-icon> Este alumno ya está registrado. Puedes corregir su RUT antes de continuar.
                 </div>
                 <form id="enrollForm" onsubmit="handleEnrollStudent(event)">
                     <div class="form-group">
@@ -359,6 +427,30 @@
                         <button type="submit" class="btn-primary">Enrolar Estudiante</button>
                     </div>
                 </form>
+                <!-- Paso: capturando huella -->
+                <div id="enroll-step-capturing" style="display:none; flex-direction:column; align-items:center; gap:16px; text-align:center; padding:16px 0;">
+                    <div class="rhf-spinner"></div>
+                    <p style="font-weight:600; color:#f1f5f9;">Coloca el dedo en el sensor</p>
+                    <p id="enroll-capturing-msg" style="font-size:0.85rem; color:#94a3b8;">Esperando huella dactilar...</p>
+                    <button type="button" class="btn-secondary" onclick="cancelarCapturaHuellaEnroll()">Cancelar</button>
+                </div>
+                <!-- Paso: éxito -->
+                <div id="enroll-step-success" style="display:none; flex-direction:column; align-items:center; gap:16px; text-align:center; padding:16px 0;">
+                    <div style="font-size:3rem; color:#22c55e; line-height:1;">✓</div>
+                    <p style="font-weight:600; color:#f1f5f9;">¡Enrolado exitosamente!</p>
+                    <p id="enroll-success-msg" style="font-size:0.85rem; color:#94a3b8;"></p>
+                    <button type="button" class="btn-primary" onclick="closeEnrollModal()">Cerrar</button>
+                </div>
+                <!-- Paso: error -->
+                <div id="enroll-step-error" style="display:none; flex-direction:column; align-items:center; gap:16px; text-align:center; padding:16px 0;">
+                    <div style="font-size:3rem; color:#ef4444; line-height:1;">✗</div>
+                    <p style="font-weight:600; color:#f1f5f9;">Error al capturar</p>
+                    <p id="enroll-error-msg" style="font-size:0.85rem; color:#94a3b8;">No se pudo capturar la huella.</p>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="closeEnrollModal()">Cancelar</button>
+                        <button type="button" class="btn-primary" onclick="retryEnrollCapture()">Reintentar</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -382,9 +474,6 @@
                         <p id="stats-student-pae">PAE: -</p>
                     </div>
                     <div class="student-info-actions">
-                        <button class="btn-exportar" onclick="openDetalleModal()">
-                            <span class="icon">📊</span> Detalle
-                        </button>
                         <button class="btn-exportar" onclick="openEditModal()">
                             <span class="icon">✏️</span> Editar
                         </button>
@@ -393,28 +482,36 @@
 
                 <div class="stats-summary">
                     <div class="stat-box">
-                        <div class="stat-box-icon breakfast">☕</div>
+                        <div class="stat-box-icon breakfast">
+                         <ion-icon name="cafe"></ion-icon>
+                        </div>
                         <div class="stat-box-info">
                             <p class="stat-box-value" id="stats-breakfast">0</p>
                             <p class="stat-box-label">Desayunos</p>
                         </div>
                     </div>
                     <div class="stat-box">
-                        <div class="stat-box-icon lunch">🍽️</div>
+                        <div class="stat-box-icon lunch">
+                            <i class="fa-solid fa-utensils"></i>
+                        </div>
                         <div class="stat-box-info">
                             <p class="stat-box-value" id="stats-lunch">0</p>
                             <p class="stat-box-label">Almuerzos</p>
                         </div>
                     </div>
                     <div class="stat-box">
-                        <div class="stat-box-icon total">📊</div>
+                        <div class="stat-box-icon total">
+                         <ion-icon name="bar-chart"></ion-icon>
+                        </div>
                         <div class="stat-box-info">
                             <p class="stat-box-value" id="stats-total">0</p>
                             <p class="stat-box-label">Total Raciones</p>
                         </div>
                     </div>
                     <div class="stat-box">
-                        <div class="stat-box-icon percentage">📈</div>
+                        <div class="stat-box-icon percentage">
+                            <ion-icon name="calendar"></ion-icon>
+                        </div>
                         <div class="stat-box-info">
                             <p class="stat-box-value" id="stats-percentage">0%</p>
                             <p class="stat-box-label">Asistencia Mensual</p>
@@ -423,17 +520,19 @@
                 </div>
                 <div class="observaciones-section">
                     <label class="observaciones-label" for="stats-observaciones">
-                        <span class="icon">🔍</span> Observaciones
+                        <span class="icon">
+                            <ion-icon name="search-circle"></ion-icon>
+                        </span> Observaciones
                     </label>
                     <textarea
                         id="stats-observaciones"
                         class="observaciones-textarea"
-                        maxlength="1000"
+                        maxlength="500"
                         placeholder="Ej: alumno vegano, alérgico al gluten..."
                         rows="3"
                     ></textarea>
                     <div class="observaciones-footer">
-                        <span id="stats-obs-counter" class="observaciones-counter">0 / 1000</span>
+                        <span id="stats-obs-counter" class="observaciones-counter">0 / 500</span>
                         <button class="btn-guardar-obs" onclick="guardarObservaciones()">Guardar</button>
                     </div>
                 </div>
@@ -455,7 +554,7 @@
                         <p id="detalle-student-run">RUN: ...</p>
                     </div>
                     <button class="btn-secondary" onclick="closeDetalleModal(); openStudentStats(currentStudent.run)">
-                        ← Volver al Resumen
+                        <ion-icon name="arrow-back-circle"></ion-icon> Volver al Resumen
                     </button>
                 </div>
 
@@ -503,7 +602,7 @@
                     </div>
                     <div class="form-group">
                         <label for="edit-curso">Curso</label>
-                        <select id="edit-curso">
+                        <select id="edit-curso" style="background-color: #15222c;">
                             <option value="">Sin cambiar</option>
                         </select>
                     </div>
@@ -520,7 +619,9 @@
                 </form>
                 <div class="modal-divider"></div>
                 <button type="button" class="btn-danger" onclick="openDeleteModal()">
-                    <span class="icon">🗑️</span> Eliminar Estudiante
+                    <span class="icon">
+                     <ion-icon name="trash-bin"></ion-icon>
+                    </span> Eliminar Estudiante
                 </button>
             </div>
         </div>
@@ -645,7 +746,9 @@
                 <div class="modal-actions">
                     <button type="button" class="btn-secondary" onclick="closeExportModal()">Cancelar</button>
                     <button type="button" class="btn-primary" onclick="confirmarExportacion()">
-                        <span class="icon">📤</span> Exportar
+                        <span class="icon">
+                            <ion-icon name="trash-bin"></ion-icon>
+                        </span> Exportar
                     </button>
                 </div>
             </div>
@@ -691,19 +794,49 @@
                 <div class="modal-actions">
                     <button type="button" class="btn-secondary" onclick="closeExportStudentsModal()">Cancelar</button>
                     <button type="button" class="btn-primary" onclick="confirmarExportStudents()">
-                        <span class="icon">📤</span> Exportar
+                        <span class="icon">
+                            <ion-icon name="trash-bin"></ion-icon>
+                        </span> Exportar
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Configuración de Tótems -->
+    <!-- Modal: Autenticación para Tótems -->
+    <div id="authGateModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2><ion-icon name="lock-closed"></ion-icon> Acceso restringido</h2>
+                <button class="modal-close" onclick="closeAuthGateModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:0.83rem;color:#94a3b8;margin-bottom:16px;">
+                    Ingresa tus credenciales de administrador para gestionar los tótems.
+                </p>
+                <div id="authgate-error" style="display:none;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:8px 12px;font-size:0.82rem;color:#f87171;margin-bottom:14px;"></div>
+                <div class="form-group">
+                    <label>RUT</label>
+                    <input type="text" id="authgate-rut" placeholder="Ej: 11111111" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="authgate-password" placeholder="Contraseña" autocomplete="current-password"
+                        onkeydown="if(event.key==='Enter') verificarAuthGate()">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeAuthGateModal()">Cancelar</button>
+                    <button type="button" class="btn-primary" id="authgate-btn" onclick="verificarAuthGate()">Ingresar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Configuración de Tótems -->
     <div id="settingsModal" class="modal">
         <div class="modal-content modal-small">
             <div class="modal-header">
-                <h2>⚙️ Configuración de Tótems</h2>
+                <h2><ion-icon name="settings"></ion-icon> Configuración de Tótems</h2>
                 <button class="modal-close" onclick="closeSettingsModal()">✕</button>
             </div>
             <div class="modal-body">
@@ -736,7 +869,7 @@
     <div id="credencialesModal" class="modal">
         <div class="modal-content modal-small">
             <div class="modal-header">
-                <h2>🔑 Cambiar Credenciales</h2>
+                <h2><ion-icon name="settings"></ion-icon> Cambiar Credenciales</h2>
                 <button class="modal-close" onclick="closeCredencialesModal()">✕</button>
             </div>
             <div class="modal-body">
@@ -769,7 +902,7 @@
     <div id="reescribirHuellaModal" class="modal">
         <div class="modal-content modal-small">
             <div class="modal-header">
-                <h2>✋ Reescribir Huella</h2>
+                <h2><ion-icon name="hand-right"></ion-icon> Reescribir Huella</h2>
                 <button class="modal-close" onclick="closeReescribirHuellaModal()">✕</button>
             </div>
             <div class="modal-body">
@@ -825,15 +958,66 @@
     </div>
 
     <script>
-        // Mostrar URL actual en el modal de settings
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('open');
+            document.querySelector('.sidebar-overlay').classList.toggle('active');
+        }
+        function closeSidebar() {
+            document.querySelector('.sidebar').classList.remove('open');
+            document.querySelector('.sidebar-overlay').classList.remove('active');
+        }
+
+        function toggleCardPanel(btn) {
+            btn.nextElementSibling.classList.toggle('open');
+            btn.classList.toggle('active');
+        }
+
+        function enableDrag(el) {
+            let isDown = false, startX, startScrollLeft;
+            el.style.cursor = 'grab';
+            el.addEventListener('mousedown', e => {
+                isDown = true;
+                startX = e.pageX - el.offsetLeft;
+                startScrollLeft = el.scrollLeft;
+                el.classList.add('carousel-dragging');
+            });
+            el.addEventListener('mouseleave', () => {
+                isDown = false;
+                el.classList.remove('carousel-dragging');
+            });
+            el.addEventListener('mouseup', () => {
+                isDown = false;
+                el.classList.remove('carousel-dragging');
+            });
+            el.addEventListener('mousemove', e => {
+                if (!isDown) return;
+                e.preventDefault();
+                const x = e.pageX - el.offsetLeft;
+                el.scrollLeft = startScrollLeft - (x - startX) * 1.5;
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
+            // Cerrar sidebar al hacer click en cualquier enlace de nav (mobile)
+            document.querySelector('.sidebar nav').addEventListener('click', e => {
+                if (e.target.closest('a')) closeSidebar();
+            });
+            document.querySelector('.nav-back').addEventListener('click', closeSidebar);
+
+            // Drag en carruseles
+            enableDrag(document.querySelector('.stats-grid'));
+            enableDrag(document.querySelector('.raciones-grid'));
+
+            // Mostrar URL actual en el modal de settings
             const el = document.getElementById('url-actual');
             if (el) el.textContent = window.location.origin;
         });
     </script>
 
-    <script src="chart.main.js?v=7"></script>
-    <script src="app.js?v=7"></script>
+    <script src="chart.main.js?v=10"></script>
+    <script src="app.js?v=10"></script>
+    <script type="module" src="https://unpkg.com/ionicons@7/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7/dist/ionicons/ionicons.js"></script>
 </body>
 
 </html>

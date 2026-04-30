@@ -43,7 +43,8 @@ const screens = {
     processing: document.getElementById('screen-processing'),
     approved: document.getElementById('screen-approved'),
     rejected: document.getElementById('screen-rejected'),
-    sinRaciones: document.getElementById('screen-sin-raciones')
+    sinRaciones: document.getElementById('screen-sin-raciones'),
+    sinSensor: document.getElementById('screen-sin-sensor')
 };
 
 // ============================================
@@ -83,7 +84,7 @@ function mostrarAprobado(data) {
     document.getElementById('approved-racion').textContent = racionCapitalizada;
 
     const paeEl = document.getElementById('approved-pae');
-    if (paeEl) paeEl.textContent = data?.es_pae ? 'PAE' : 'No PAE';
+    if (paeEl) paeEl.textContent = data?.es_pae ? 'SI' : 'NO';
 
     showScreen('approved');
     autoReturnToWaiting(3000);
@@ -108,6 +109,8 @@ function mostrarSinRaciones(mensaje, tipo_racion) {
 // FLUJO PRINCIPAL
 // ============================================
 
+let _silentCloseCount = 0;
+
 async function activarSensor() {
     // Cerrar conexión anterior si existe
     if (activeWs) {
@@ -124,12 +127,19 @@ async function activarSensor() {
 
     ws.onmessage = (event) => {
         responded = true;
+        _silentCloseCount = 0;
         activeWs = null;
         const data = JSON.parse(event.data);
-        if (data.estado === 'Aprobado') {
+        if (data.estado === 'Admin') {
+            window.location.href = '/index/menu.html';
+        } else if (data.estado === 'Aprobado') {
             mostrarAprobado({ ...data.alumno, tipo_racion: data.tipo_racion });
         } else if (data.estado === 'SinRaciones') {
             mostrarSinRaciones(data.mensaje, data.tipo_racion);
+        } else if (data.estado === 'error') {
+            _silentCloseCount = 0;
+            showScreen('sinSensor');
+            _esperarSensor();
         } else {
             mostrarRechazado(data.mensaje, data.alumno?.nombre || '');
         }
@@ -142,9 +152,30 @@ async function activarSensor() {
         }
     };
 
-    ws.onclose = () => {
+    ws.onclose = async () => {
         if (!responded) {
             activeWs = null;
+            _silentCloseCount++;
+
+            // Respaldo: tras 3 cierres sin respuesta, verificar hardware físico.
+            // Cubre el caso donde init_sensor() no detecta la desconexión post-captura.
+            if (_silentCloseCount >= 3) {
+                _silentCloseCount = 0;
+                try {
+                    const res = await fetch(`${API_URL}/api/sensor/verificar`);
+                    const data = await res.json();
+                    if (!data.available) {
+                        showScreen('sinSensor');
+                        _esperarSensor();
+                        return;
+                    }
+                } catch {
+                    showScreen('sinSensor');
+                    _esperarSensor();
+                    return;
+                }
+            }
+
             setTimeout(() => activarSensor(), 500);
         }
     };
@@ -154,31 +185,54 @@ async function activarSensor() {
 // INICIALIZACION
 // ============================================
 
-function _mostrarAdvertenciaSensor(visible) {
-    const el = document.getElementById('sensor-warning');
-    if (el) el.style.display = visible ? 'block' : 'none';
+let _esperandoSensor = false;
+
+async function _esperarSensor() {
+    if (_esperandoSensor) return;
+    _esperandoSensor = true;
+    while (true) {
+        await new Promise(r => setTimeout(r, 3000));
+        try {
+            const res = await fetch(`${API_URL}/api/sensor/status`);
+            const data = await res.json();
+            if (data.available === true) {
+                _esperandoSensor = false;
+                activarSensor();
+                return;
+            }
+        } catch {}
+    }
 }
 
 async function inicializar() {
     showScreen('waiting');
 
-    let intentos = 0;
-    while (intentos < 30) {
+    let serverReachable = false;
+    let sensorAvailable = false;
+
+    for (let i = 0; i < 15; i++) {
         try {
             const res = await fetch(`${API_URL}/api/sensor/status`);
             const data = await res.json();
-            if (data.available === true) break;
+            serverReachable = true;
+            sensorAvailable = data.available === true;
+            break;
         } catch {}
-        intentos++;
         await new Promise(r => setTimeout(r, 1000));
     }
 
-    if (intentos >= 30) {
+    if (!serverReachable) {
         mostrarRechazado('Error de conexion', 'No se pudo conectar al servidor');
         return;
     }
 
-    activarSensor();
+    if (sensorAvailable) {
+        activarSensor();
+        return;
+    }
+
+    showScreen('sinSensor');
+    _esperarSensor();
 }
 
 if (document.readyState === 'loading') {
@@ -246,6 +300,7 @@ let capturedHuellaHex = null;
 let enrollRutIngresado = null;
 let pendingEnrollConfirm = null;
 let pendingAdminReenroll = null;
+let enrollMode = null; // 'nombre' | 'huella'
 
 function mostrarEnrollStep(stepId) {
     document.querySelectorAll('.enroll-step').forEach(s => s.style.display = 'none');
@@ -261,6 +316,7 @@ function cancelarRegistro() {
     capturedHuellaHex = null;
     enrollRutIngresado = null;
     pendingEnrollConfirm = null;
+    enrollMode = null;
     const form = document.getElementById('enroll-form');
     if (form) form.reset();
     const rutError = document.getElementById('enroll-rut-error');
@@ -268,22 +324,33 @@ function cancelarRegistro() {
     activarSensor();
 }
 
-async function iniciarRegistro() {
+function iniciarIdentificacion() {
     if (activeWs) { activeWs.onclose = null; activeWs.close(); activeWs = null; }
+    mostrarEnrollStep('enroll-step-metodo');
+}
 
-    // Verificar sensor antes de iniciar registro
+function iniciarPorNombre() {
+    enrollMode = 'nombre';
+    capturedHuellaHex = null;
+    mostrarFormularioRegistro();
+}
+
+async function iniciarPorHuella() {
+    enrollMode = 'huella';
+
     try {
         const res = await fetch(`${API_URL}/api/sensor/status`);
         const data = await res.json();
         if (!data.available) {
-            _mostrarAdvertenciaSensor(true);
+            showScreen('sinSensor');
+            _esperarSensor();
             return;
         }
     } catch {
-        _mostrarAdvertenciaSensor(true);
+        showScreen('sinSensor');
+        _esperarSensor();
         return;
     }
-    _mostrarAdvertenciaSensor(false);
 
     mostrarEnrollStep('enroll-step-scanning');
 
@@ -310,7 +377,7 @@ async function iniciarRegistro() {
             } catch {}
             mostrarEnrollStep('enroll-step-ya-registrado');
         } else {
-            mostrarEnrollStep('enroll-step-alumno-no-en-sistema');
+            mostrarEnrollStep('enroll-step-no-en-sistema-huella');
         }
     };
 

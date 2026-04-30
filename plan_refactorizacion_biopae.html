@@ -216,7 +216,7 @@ def procesarAsistencia(self, usuario_id: int, db: Session):
     if not usuario:
         return {"estado": "Rechazado", "mensaje": "No encontrado"}
     if not usuario.es_pae:
-        return {"estado": "Rechazado", "mensaje": "No PAE"}
+        return {"estado": "Rechazado", "mensaje": "No"}
     # ... todo con el mismo objeto, 1 query`,
             impact: "3x menos queries por cada acceso de tótem. Respuesta más rápida.",
           },

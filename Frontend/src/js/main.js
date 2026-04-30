@@ -71,7 +71,7 @@ function iniciarServidor() {
     console.log('[MAIN] Python:', pythonExe);
     if (dataDir) console.log('[MAIN] BIOPAE_DATA_DIR:', dataDir);
 
-    pythonProcess = spawn(pythonExe, ['-m', 'uvicorn', 'infra.main:app', '--port', '8080'], {
+    pythonProcess = spawn(pythonExe, ['-m', 'uvicorn', 'infra.main:app', '--host', '0.0.0.0', '--port', '8080'], {
         cwd: proyectoRaiz,
         stdio: ['ignore', 'pipe', 'pipe'],
         shell: false,

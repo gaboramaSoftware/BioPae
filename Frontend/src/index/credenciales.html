@@ -45,28 +45,32 @@
 
         <form class="auth-form" id="credForm">
             <div class="input-group">
-                <label><i>👤</i> RUT actual</label>
+                <label><i><ion-icon name="keypad"></ion-icon></i> RUT actual</label>
                 <input type="text" id="cred-rut-actual" class="input-field" placeholder="RUT del usuario actual" required>
             </div>
 
             <div class="input-group">
-                <label><i>👤</i> Nuevo usuario (RUT)</label>
+                <label><i><ion-icon name="keypad"></ion-icon></i> Nuevo usuario (RUT)</label>
                 <input type="text" id="cred-nuevo-rut" class="input-field" placeholder="Ej: 12345678" required>
             </div>
 
             <div class="input-group">
-                <label><i>🔑</i> Nueva contraseña</label>
+                <label><i><ion-icon name="keypad"></ion-icon></i> Nueva contraseña</label>
                 <div class="password-wrapper">
                     <input type="password" id="cred-nueva-password" class="input-field" placeholder="Mínimo 6 caracteres" required>
-                    <button type="button" class="password-toggle" onclick="toggleVer('cred-nueva-password', this)">👁️</button>
+                    <button type="button" class="password-toggle" onclick="toggleVer('cred-nueva-password', this)">
+                        <ion-icon name="eye"></ion-icon>
+                    </button>
                 </div>
             </div>
 
             <div class="input-group">
-                <label><i>🔑</i> Confirmar nueva contraseña</label>
+                <label><i><ion-icon name="keypad"></ion-icon></i> Confirmar nueva contraseña</label>
                 <div class="password-wrapper">
                     <input type="password" id="cred-confirmar-password" class="input-field" placeholder="Repetir contraseña" required>
-                    <button type="button" class="password-toggle" onclick="toggleVer('cred-confirmar-password', this)">👁️</button>
+                    <button type="button" class="password-toggle" onclick="toggleVer('cred-confirmar-password', this)">
+                        <ion-icon name="eye"></ion-icon>
+                    </button>
                 </div>
             </div>
 
@@ -79,7 +83,7 @@
             const inp = document.getElementById(inputId);
             const esPassword = inp.type === 'password';
             inp.type = esPassword ? 'text' : 'password';
-            btn.textContent = esPassword ? '🙈' : '👁️';
+            btn.textContent = esPassword ? '<ion-icon name="eye-off"></ion-icon>' : '<ion-icon name="eye-off"></ion-icon>';
         }
 
         function mostrarMsg(texto, ok) {
@@ -132,5 +136,7 @@
             }
         });
     </script>
+    <script type="module" src="https://unpkg.com/ionicons@7/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7/dist/ionicons/ionicons.js"></script>
 </body>
 </html>

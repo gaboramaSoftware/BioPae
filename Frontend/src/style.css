@@ -2,7 +2,7 @@
   --primary-color: #3b82f6;
   --secondary-color: #10b981;
   --danger-color: #ef4444;
-  --bg-color: #0f172a;
+  --bg-color: #1f2c70;
   --card-bg: rgba(30, 41, 59, 0.7);
   --glass-border: rgba(255, 255, 255, 0.1);
   --text-main: #f8fafc;
@@ -205,13 +205,16 @@ h1 {
 }
 
 .admin-content {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid var(--glass-border);
-    color: var(--text-muted);
+    background: #1e293b;
+    border: 1px solid #475569;
+    color: #f1f5f9;
     padding: 0.5rem 1rem;
     border-radius: 8px;
     cursor: pointer;
+    font-weight: 600;
+    transition: background 0.2s;
 }
+.admin-content:hover { background: #334155; }
 
 /* Spinner de procesamiento */
 .spinner {
@@ -292,6 +295,42 @@ h1 {
     color: #fde68a;
 }
 
+/* Pantalla Sin Sensor */
+.screen-sin-sensor {
+    background: linear-gradient(135deg, #713f12 0%, #a16207 60%, #ca8a04 100%);
+}
+
+.screen-sin-sensor .warning-sensor-mark {
+    font-size: 6rem;
+    color: #fef08a;
+    margin-bottom: 1rem;
+    text-shadow: 0 0 30px rgba(254, 240, 138, 0.6);
+    animation: pulse 2s infinite;
+}
+
+.sin-sensor-info {
+    background: rgba(254, 240, 138, 0.1);
+    padding: 2rem;
+    border-radius: 16px;
+    border: 1px solid #fef08a;
+    min-width: 300px;
+    text-align: center;
+}
+
+.sin-sensor-msg {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #fef08a;
+}
+
+.sin-sensor-pulse {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #fef08a;
+    animation: pulse 1.5s infinite;
+}
+
 /* ===================== BOTÓN REGISTRARSE ===================== */
 .register-button {
     position: fixed;
@@ -301,18 +340,19 @@ h1 {
 }
 
 .register-content {
-    background: rgba(59, 130, 246, 0.15);
-    border: 1px solid var(--primary-color);
-    color: var(--primary-color);
+    background: #3b82f6;
+    border: 1px solid #2563eb;
+    color: #fff;
     padding: 0.5rem 1rem;
     border-radius: 8px;
     cursor: pointer;
     font-size: 0.9rem;
+    font-weight: 600;
     transition: background 0.2s;
 }
 
 .register-content:hover {
-    background: rgba(59, 130, 246, 0.3);
+    background: #2563eb;
 }
 
 /* ===================== OVERLAY REGISTRO ===================== */

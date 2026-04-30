@@ -13,12 +13,44 @@ function obtenerTotems() {
             if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
     } catch (e) {}
-    return [{ nombre: 'Tótem 1', url: window.location.origin }];
+    return [{ nombre: 'Tótem 1', url: 'http://localhost:8080' }];
 }
 
 function guardarConfigTotems(lista) {
     localStorage.setItem('biopae_totems', JSON.stringify(lista));
+    _persistirPeersEnDB(lista);
     refreshData();
+}
+
+async function _persistirPeersEnDB(lista) {
+    try {
+        await fetch(`${API_URL}/api/peers`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(lista.map(t => ({ nombre: t.nombre, url: t.url })))
+        });
+    } catch (e) {
+        console.warn('[PEERS] No se pudo persistir en BD:', e.message);
+    }
+}
+
+async function sincronizarPeersDesdeDB() {
+    try {
+        const res = await fetch(`${API_URL}/api/peers`);
+        if (!res.ok) return;
+        const peers = await res.json();
+        if (peers.length > 0) {
+            // BD tiene datos → actualizar localStorage
+            localStorage.setItem('biopae_totems', JSON.stringify(
+                peers.map(p => ({ nombre: p.nombre, url: p.url }))
+            ));
+        } else {
+            // BD vacía → migrar localStorage existente a BD
+            _persistirPeersEnDB(obtenerTotems());
+        }
+    } catch (e) {
+        console.warn('[PEERS] No se pudo sincronizar desde BD:', e.message);
+    }
 }
 
 async function fetchDesdeTotems(path) {
@@ -42,6 +74,9 @@ let enrollingUserId = null;   // ID del usuario creado pero aún sin huella conf
 let enrollWs = null;          // WebSocket activo de enrolamiento
 let confirmandoDuplicado = false;  // true cuando esperamos confirmación de duplicado
 let usuarioDuplicadoId = null;     // ID del duplicado encontrado
+let _enrollAdminMode = false;
+let _adminCursoId = null;
+let _enrollRetryData = null;
 
 
 
@@ -52,10 +87,13 @@ let usuarioDuplicadoId = null;     // ID del duplicado encontrado
 
 document.addEventListener('DOMContentLoaded', () => {
     actualizarFecha();
+    sincronizarPeersDesdeDB();
     cargarDashboard();
     cargarEstudiantes();
     cargarRegistros();
     initCourseFilter();
+    // Sync automático cada 5 minutos mientras el panel esté abierto
+    setInterval(broadcastSync, 5 * 60 * 1000);
 });
 
 function actualizarFecha() {
@@ -257,7 +295,7 @@ function renderTablaEstudiantes(lista) {
             <td>${u.rut || 'Sin RUT'}</td>
             <td>${u.nombre}${multiTotem ? ` <span class="badge-totem" title="${u._totem_nombre}">${u._totem_nombre}</span>` : ''}</td>
             <td>${u.curso}</td>
-            <td>${u.es_pae ? '<span class="badge-pae">PAE</span>' : '<span class="badge-no-pae">No PAE</span>'}</td>
+            <td>${u.es_pae ? '<span class="badge-pae">PAE</span>' : '<span class="badge-no-pae">No</span>'}</td>
             <td>
                 <button class="btn-action btn-stats" onclick="openStudentStats('${u._uid}')">Ver</button>
             </td>
@@ -274,7 +312,7 @@ async function initCourseFilter() {
         const res = await fetch(`${API_URL}/api/cursos`);
         const cursos = await res.json();
         // Excluir registros corruptos (nivel="°") y cursos sin letra
-        const conLetra = cursos.filter(c => c.letra && c.letra.trim() !== '' && c.nivel !== '°');
+        const conLetra = cursos.filter(c => c.letra && c.letra.trim() !== '' && c.nivel !== '°' && c.nivel !== 'Admin');
 
         // El nivel completo combina numero + nivel: "1 Basico", "Pre-Kinder", etc.
         const nivelesSet = new Set(conLetra.map(c => c.numero ? `${c.numero} ${c.nivel}` : c.nivel));
@@ -305,8 +343,8 @@ function filterStudentsByCourse() {
 // MODAL ENROLAR
 // ============================================
 
-async function openEnrollModal() {
-    // Resetear estado de duplicado
+async function openEnrollModal(adminMode = false) {
+    _enrollAdminMode = adminMode;
     confirmandoDuplicado = false;
     usuarioDuplicadoId = null;
     const notice = document.getElementById('enroll-duplicado-notice');
@@ -316,12 +354,70 @@ async function openEnrollModal() {
         const res = await fetch(`${API_URL}/api/cursos`);
         const cursos = await res.json();
         const select = document.getElementById('enroll-curso');
-        select.innerHTML = '<option value="">Seleccione un curso</option>' +
-            cursos.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+        if (adminMode) {
+            const adminCurso = cursos.find(c => c.nivel === 'Admin');
+            if (adminCurso) {
+                _adminCursoId = adminCurso.id;
+                select.innerHTML = `<option value="${adminCurso.id}" selected>${adminCurso.nombre}</option>`;
+            }
+        } else {
+            const regularCursos = cursos.filter(c => c.nivel !== 'Admin');
+            select.innerHTML = '<option value="">Seleccione un curso</option>' +
+                regularCursos.sort((a, b) => _compararCurso(a.nombre, b.nombre))
+                             .map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+        }
     } catch (e) {
         console.error('[ENROLAR] Error al cargar cursos:', e.message);
     }
+
+    const modalTitle = document.querySelector('#enrollModal .modal-header h2');
+    if (modalTitle) modalTitle.textContent = adminMode ? 'Enrolar Administrador' : 'Enrolar Nuevo Estudiante';
+
+    const cursoSelect = document.getElementById('enroll-curso');
+    const cursoGroup = cursoSelect?.closest('.form-group');
+    if (cursoGroup) cursoGroup.style.display = adminMode ? 'none' : '';
+    if (cursoSelect) cursoSelect.required = !adminMode;
+
+    const paeGroup = document.getElementById('enroll-pae')?.closest('.form-group');
+    if (paeGroup) paeGroup.style.display = adminMode ? 'none' : '';
+
+    const submitBtn = document.querySelector('#enrollForm [type="submit"]');
+    if (submitBtn) submitBtn.textContent = adminMode ? 'Enrolar Administrador' : 'Enrolar Estudiante';
+
     document.getElementById('enrollModal').classList.add('active');
+}
+
+function openEnrollAdminModal() {
+    openEnrollModal(true);
+}
+
+function _enrollShowStep(stepId) {
+    const form = document.getElementById('enrollForm');
+    const notice = document.getElementById('enroll-duplicado-notice');
+    if (stepId === 'enrollForm') {
+        if (form) form.style.display = '';
+    } else {
+        if (form) form.style.display = 'none';
+        if (notice) notice.style.display = 'none';
+        ['enroll-step-capturing', 'enroll-step-success', 'enroll-step-error'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+        const el = document.getElementById(stepId);
+        if (el) el.style.display = 'flex';
+    }
+}
+
+function cancelarCapturaHuellaEnroll() {
+    if (enrollWs) { enrollWs.onclose = null; enrollWs.close(); enrollWs = null; }
+    closeEnrollModal();
+}
+
+function retryEnrollCapture() {
+    if (!_enrollRetryData) return;
+    const { wsEndpoint, nombre, apellido, esDuplicado } = _enrollRetryData;
+    _enrollShowStep('enroll-step-capturing');
+    _iniciarCapturaHuella(wsEndpoint, nombre, apellido, esDuplicado);
 }
 
 function closeEnrollModal() {
@@ -350,6 +446,19 @@ function closeEnrollModal() {
     document.getElementById('enrollForm').reset();
     const submitBtn = document.getElementById('enrollForm')?.querySelector('[type="submit"]');
     if (submitBtn) { submitBtn.textContent = 'Enrolar Estudiante'; submitBtn.disabled = false; }
+
+    const modalTitle = document.querySelector('#enrollModal .modal-header h2');
+    if (modalTitle) modalTitle.textContent = 'Enrolar Nuevo Estudiante';
+    const cursoSelectReset = document.getElementById('enroll-curso');
+    if (cursoSelectReset) cursoSelectReset.required = true;
+    const cursoGroup = cursoSelectReset?.closest('.form-group');
+    if (cursoGroup) cursoGroup.style.display = '';
+    const paeGroup = document.getElementById('enroll-pae')?.closest('.form-group');
+    if (paeGroup) paeGroup.style.display = '';
+    _enrollAdminMode = false;
+    _adminCursoId = null;
+    _enrollRetryData = null;
+    _enrollShowStep('enrollForm');
 }
 
 async function handleEnrollStudent(event) {
@@ -357,12 +466,12 @@ async function handleEnrollStudent(event) {
 
     const nombre   = document.getElementById('enroll-nombre').value.trim();
     const apellido = document.getElementById('enroll-apellido').value.trim();
-    const cursoId  = parseInt(document.getElementById('enroll-curso').value);
-    const esPae    = document.getElementById('enroll-pae')?.checked ?? false;
+    const cursoId  = _enrollAdminMode ? _adminCursoId : parseInt(document.getElementById('enroll-curso').value);
+    const esPae    = _enrollAdminMode ? false : (document.getElementById('enroll-pae')?.checked ?? false);
     const inputRut = document.getElementById('enroll-run')?.value.trim() ?? '';
 
     if (!nombre || !apellido || !cursoId) {
-        alert('Completa nombre, apellido y curso.');
+        alert(_enrollAdminMode ? 'Completa nombre y apellido.' : 'Completa nombre, apellido y curso.');
         return;
     }
 
@@ -377,9 +486,6 @@ async function handleEnrollStudent(event) {
     // ─── Paso de confirmación de duplicado ───────────────────────────────────
     // El admin ya vio el aviso y (opcionalmente) corrigió el RUT. Procedemos.
     if (confirmandoDuplicado && usuarioDuplicadoId !== null) {
-        submitBtn.textContent = 'Ponga el dedo en el sensor...';
-        submitBtn.disabled = true;
-
         // Si el admin ingresó un RUT (nuevo o corregido), actualizar en BD
         if (inputRut !== '') {
             try {
@@ -394,9 +500,10 @@ async function handleEnrollStudent(event) {
         }
 
         const wsBase = API_URL.replace(/^http/, 'ws');
+        _enrollShowStep('enroll-step-capturing');
         _iniciarCapturaHuella(
             `${wsBase}/ws/huella/editar/${usuarioDuplicadoId}`,
-            nombre, apellido, submitBtn, true
+            nombre, apellido, true
         );
         return;
     }
@@ -424,7 +531,7 @@ async function handleEnrollStudent(event) {
         if (!res.ok) {
             const err = await res.json();
             alert('Error: ' + (err.detail || 'No se pudo crear el usuario'));
-            submitBtn.textContent = 'Enrolar Estudiante';
+            submitBtn.textContent = _enrollAdminMode ? 'Enrolar Administrador' : 'Enrolar Estudiante';
             submitBtn.disabled = false;
             return;
         }
@@ -452,22 +559,24 @@ async function handleEnrollStudent(event) {
 
         // Usuario nuevo → marcar para eliminación si se cierra sin confirmar
         enrollingUserId = usuarioId;
-        submitBtn.textContent = 'Ponga el dedo en el sensor...';
+        _enrollShowStep('enroll-step-capturing');
         const wsBase = API_URL.replace(/^http/, 'ws');
         _iniciarCapturaHuella(
             `${wsBase}/ws/huella/enrolar/${usuarioId}`,
-            nombre, apellido, submitBtn, false
+            nombre, apellido, false
         );
 
     } catch (e) {
         console.error('[ENROLAR] Error:', e.message);
         alert('Error de conexión al enrolar');
-        submitBtn.textContent = 'Enrolar Estudiante';
+        submitBtn.textContent = _enrollAdminMode ? 'Enrolar Administrador' : 'Enrolar Estudiante';
         submitBtn.disabled = false;
     }
 }
 
-function _iniciarCapturaHuella(wsEndpoint, nombre, apellido, submitBtn, esDuplicado) {
+function _iniciarCapturaHuella(wsEndpoint, nombre, apellido, esDuplicado) {
+    _enrollRetryData = { wsEndpoint, nombre, apellido, esDuplicado };
+    document.getElementById('enroll-capturing-msg').textContent = 'Esperando huella dactilar...';
     const ws = new WebSocket(wsEndpoint);
     enrollWs = ws;
     let responded = false;
@@ -479,33 +588,32 @@ function _iniciarCapturaHuella(wsEndpoint, nombre, apellido, submitBtn, esDuplic
 
         if (data.estado) {
             enrollingUserId = null;
-            const msg = esDuplicado
-                ? `✓ Huella de ${nombre} ${apellido} actualizada exitosamente.`
-                : `✓ Estudiante ${nombre} ${apellido} enrolado exitosamente.`;
-            alert(msg);
-            closeEnrollModal();
+            document.getElementById('enroll-success-msg').textContent = esDuplicado
+                ? `Huella de ${nombre} ${apellido} actualizada exitosamente.`
+                : `Estudiante ${nombre} ${apellido} enrolado exitosamente.`;
+            _enrollShowStep('enroll-step-success');
             cargarEstudiantes();
+            broadcastSync();
         } else {
-            alert('Error al capturar la huella: ' + (data.mensaje || 'Intente nuevamente.'));
-            submitBtn.textContent = esDuplicado ? 'Confirmar y sobrescribir huella' : 'Enrolar Estudiante';
-            submitBtn.disabled = false;
+            document.getElementById('enroll-error-msg').textContent =
+                data.mensaje || 'No se pudo capturar la huella. Intenta nuevamente.';
+            _enrollShowStep('enroll-step-error');
         }
     };
 
     ws.onerror = () => {
         if (!responded) {
             enrollWs = null;
-            alert('Error de conexión con el sensor.');
-            submitBtn.textContent = esDuplicado ? 'Confirmar y sobrescribir huella' : 'Enrolar Estudiante';
-            submitBtn.disabled = false;
+            document.getElementById('enroll-error-msg').textContent = 'Error de conexión con el sensor.';
+            _enrollShowStep('enroll-step-error');
         }
     };
 
     ws.onclose = () => {
         if (!responded) {
             enrollWs = null;
-            submitBtn.textContent = esDuplicado ? 'Confirmar y sobrescribir huella' : 'Enrolar Estudiante';
-            submitBtn.disabled = false;
+            document.getElementById('enroll-error-msg').textContent = 'La conexión se cerró inesperadamente.';
+            _enrollShowStep('enroll-step-error');
         }
     };
 }
@@ -528,8 +636,8 @@ async function openStudentStats(uid) {
     const obsEl = document.getElementById('stats-observaciones');
     const counterEl = document.getElementById('stats-obs-counter');
     obsEl.value = currentStudent.observaciones || '';
-    counterEl.textContent = `${obsEl.value.length} / 1000`;
-    obsEl.oninput = () => { counterEl.textContent = `${obsEl.value.length} / 1000`; };
+    counterEl.textContent = `${obsEl.value.length} / 500`;
+    obsEl.oninput = () => { counterEl.textContent = `${obsEl.value.length} / 500`; };
 
     // Cargar historial para calcular stats
     try {
@@ -554,7 +662,7 @@ function closeStatsModal() {
 
 async function guardarObservaciones() {
     if (!currentStudent) return;
-    const texto = document.getElementById('stats-observaciones').value.slice(0, 1000);
+    const texto = document.getElementById('stats-observaciones').value.slice(0, 500);
     const btn = document.querySelector('.btn-guardar-obs');
     btn.disabled = true;
     btn.textContent = 'Guardando...';
@@ -667,6 +775,7 @@ async function handleEditStudent(event) {
         });
         closeEditModal();
         cargarEstudiantes();
+        broadcastSync();
     } catch (e) {
         alert('Error al guardar cambios');
     }
@@ -1242,6 +1351,7 @@ async function importarJUNAEB(input) {
             statusEl.textContent = `✓ ${data.mensaje}`;
             statusEl.className = 'import-status success';
             cargarEstudiantes();
+            broadcastSync();
         } else {
             statusEl.textContent = `✗ ${data.mensaje || data.detail}`;
             statusEl.className = 'import-status error';
@@ -1258,6 +1368,32 @@ async function importarJUNAEB(input) {
 // ============================================
 // EXPORTAR A EXCEL (esto hay que tambien transformarlo en una API)
 // ============================================
+
+// ============================================
+// SYNC ENTRE TÓTEMS
+// ============================================
+
+async function broadcastSync() {
+    const otros = obtenerTotems().filter(t => t.url !== API_URL);
+    if (otros.length === 0) return;
+
+    try {
+        const res = await fetch(`${API_URL}/api/sync/export`);
+        if (!res.ok) return;
+        const payload = await res.json();
+
+        for (const totem of otros) {
+            fetch(`${totem.url}/api/sync/import`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).catch(e => console.warn(`[SYNC] No se pudo sincronizar con ${totem.nombre}:`, e.message));
+        }
+        console.log(`[SYNC] Broadcast enviado a ${otros.length} tótem(s)`);
+    } catch (e) {
+        console.warn('[SYNC] Error en broadcast:', e.message);
+    }
+}
 
 // ============================================
 // CONFIGURACIÓN DE TÓTEMS
@@ -1657,4 +1793,60 @@ function exportToExcel() {
     a.download = `estudiantes_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+}
+
+// ============================================
+// AUTH GATE — acceso a Tótems
+// ============================================
+function openAuthGateModal() {
+    document.getElementById('authgate-rut').value = '';
+    document.getElementById('authgate-password').value = '';
+    document.getElementById('authgate-error').style.display = 'none';
+    document.getElementById('authgate-btn').disabled = false;
+    document.getElementById('authGateModal').classList.add('active');
+    setTimeout(() => document.getElementById('authgate-rut').focus(), 100);
+}
+
+function closeAuthGateModal() {
+    document.getElementById('authGateModal').classList.remove('active');
+}
+
+async function verificarAuthGate() {
+    const rut = document.getElementById('authgate-rut').value.trim();
+    const password = document.getElementById('authgate-password').value;
+    const btn = document.getElementById('authgate-btn');
+    const errorEl = document.getElementById('authgate-error');
+
+    if (!rut || !password) {
+        errorEl.textContent = 'Completa ambos campos.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Verificando...';
+    errorEl.style.display = 'none';
+
+    try {
+        const res = await fetch(`${API_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rut, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeAuthGateModal();
+            openSettingsModal();
+        } else {
+            errorEl.textContent = data.error || 'RUT o contraseña incorrectos.';
+            errorEl.style.display = 'block';
+            btn.disabled = false;
+            btn.textContent = 'Ingresar';
+        }
+    } catch {
+        errorEl.textContent = 'Error de conexión con el servidor.';
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Ingresar';
+    }
 }

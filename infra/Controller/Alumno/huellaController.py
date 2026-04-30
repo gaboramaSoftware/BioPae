@@ -64,29 +64,25 @@ class HuellaController:
                 if id_alumno is None:
                     return {"estado": False, "mensaje": "Falta el ID del alumno para enrolar"}
 
-                # 1. Guardar en el Hardware (ZKTeco)
-                guardado_hw = controlador_hardware.guardar_en_bd(id_alumno, huella_bytes)
-                if not guardado_hw:
-                    return {"estado": False, "mensaje": "Error al guardar huella en hardware"}
-                
-                #guardar en base de datos
+                # 1. Guardar en SQLite primero (upsert)
                 huella_hex = huella_bytes.hex()
-                #Buscamos si el alumno tiene la huella registrada
                 huella_db = self.db.query(Huella).filter(Huella.usuario_id == id_alumno).first()
-
                 if huella_db:
-                    #si existe la huella lo actualizamos
                     huella_db.huella_blob = huella_hex
-                else: #si no existe la huella creamos un registro nuevo
+                else:
                     nueva_huella = Huella(huella_blob=huella_hex, usuario_id=id_alumno)
                     self.db.add(nueva_huella)
 
-                #confirmamos los cambios
                 try:
                     self.db.commit()
                 except Exception as e:
                     self.db.rollback()
                     return {"estado": False, "mensaje": f"Error al guardar huella en SQLite: {str(e)}"}
+
+                # 2. Refrescar RAM del sensor desde SQLite.
+                # db_add falla si el userId ya está en RAM (ej: server sin reiniciar tras borrar usuario).
+                # refrescar_bd_hardware garantiza que la huella quede activa sin importar el estado previo.
+                controlador_hardware.refrescar_bd_hardware()
 
                 self.guardar_captura(
                     instancia=None,

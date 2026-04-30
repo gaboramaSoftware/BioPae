@@ -34,6 +34,11 @@ infra/DB/backups/
 *.xlsx
 *.xls
 *.pdf
+*.exe
+*.csv
+
+# Instaladores y pendrive
+Pendrive/
 
 # Otros archivos de sistema/IDE
 .claude/

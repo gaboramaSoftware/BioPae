@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from infra.DB import modelos
 import uvicorn
 from sqlalchemy import text  # NUEVO: Importación necesaria para el Punto 5
@@ -25,7 +25,9 @@ from infra.Controller.Alumno.huellaController import HuellaController
 from infra.Controller.RegistrosController import RegistrosController
 from core.Services.ticketServices.horarioService import obtener_tipo_racion, descripcion_horario
 from core.Domain.Repository.UserRepository import SessionLocal, crearUsuarioBase, eliminarUsuario
-from infra.DB.modelos import Usuario, Curso, AdminConfig
+from infra.DB.modelos import Usuario, Curso, AdminConfig, Huella, PeerNode
+
+
 
 def _crear_backup_db():
     """Crea un backup con timestamp de la base de datos. Mantiene los últimos 48 backups."""
@@ -75,15 +77,66 @@ async def lifespan(app: FastAPI):
         logger.warning(f"[STARTUP] Sensor no disponible al arrancar ({msg}). Las huellas no se cargaron.")
 
     tarea_backup = asyncio.create_task(_tarea_backup_periodico())
+    task_sensor = asyncio.create_task(sensor_worker())
 
     yield
 
     # Shutdown: backup final antes de cerrar
     tarea_backup.cancel()
+    task_sensor.cancel()
     _crear_backup_db()
     logger.info("[SHUTDOWN] Backup de cierre creado correctamente.")
 
 app = FastAPI(lifespan=lifespan)
+cola_huellas = asyncio.Queue()
+
+#buzon de datos para el sensor
+instruccion_sensor = {
+    "modo": "ASISTENCIA",
+    "target_user_id": None
+}
+
+async def sensor_worker():
+    loop = asyncio.get_running_loop()
+    while True:
+        try:
+            modo_actual = instruccion_sensor["modo"]
+
+            if modo_actual == "ASISTENCIA":
+                resultado = await loop.run_in_executor(None, hardware_service.identificar_usuario)
+                
+                # Caso 1: Huella leída exitosamente y reconocida
+                if resultado and resultado[0] > 0:
+                    await cola_huellas.put({"tipo": "ASISTENCIA", "datos": resultado})
+                
+                # Caso 2: Huella leída perfectamente, pero NO existe en BD (ID 0)
+                elif resultado and resultado[0] == 0:
+                    await cola_huellas.put({"tipo": "NO_RECONOCIDO", "datos": resultado})
+                
+                # Caso 3: Dedo mal puesto o ruido
+                else:
+                    await asyncio.sleep(0.05)
+            
+            elif modo_actual == "ENROLAR":
+                # Admin registra a alguien
+                user_id = instruccion_sensor["target_user_id"]
+                resultado = await loop.run_in_executor(
+                    None,
+                    lambda: huella_buffer.procesar_contexto(
+                        contexto="enrolar",
+                        controlador_hardware=hardware_service,
+                        id_alumno=user_id
+                    )
+                )
+
+                # Avisamos al terminar y devolvemos el sensor a la normalidad
+                await cola_huellas.put({"tipo": "ENROLAMIENTO_LISTO", "datos": resultado})
+                instruccion_sensor["modo"] = "ASISTENCIA"
+                instruccion_sensor["target_user_id"] = None
+        
+        except Exception as e:
+            logger.error(f"[SENSOR WORKER] Error en proceso: {e}")
+            await asyncio.sleep(1)
 
 class _NoCacheHTMLMiddleware(BaseHTTPMiddleware):
     """Evita que el navegador cachee archivos .html y .js del frontend."""
@@ -153,6 +206,34 @@ def _seed_admin_config():
         db.close()
 
 _seed_admin_config()
+
+def _seed_admin_curso():
+    """Crea el curso especial Admin si no existe (se ejecuta incluso si ya hay otros cursos)."""
+    db = SessionLocal()
+    try:
+        if db.query(Curso).filter(Curso.nivel == "Admin").first():
+            return
+        db.add(Curso(numero=None, nivel="Admin", letra="A"))
+        db.commit()
+        logger.info("[SEED] Curso Admin creado.")
+    finally:
+        db.close()
+
+_seed_admin_curso()
+
+def _seed_raciones_config():
+    """Garantiza que existan las filas de configuración de raciones al arrancar."""
+    from infra.DB.modelos import RacionesConfig
+    db = SessionLocal()
+    try:
+        for tipo in ("desayuno", "almuerzo"):
+            if not db.query(RacionesConfig).filter(RacionesConfig.tipo == tipo).first():
+                db.add(RacionesConfig(tipo=tipo, total=0))
+        db.commit()
+    finally:
+        db.close()
+
+_seed_raciones_config()
 
 app.add_middleware(
     CORSMiddleware,
@@ -244,6 +325,8 @@ def api_sensor_verificar():
     Más confiable que /status para detectar desconexión del dispositivo USB."""
     conectado = hardware_service.verificar_conexion_hardware()
     return {"available": conectado}
+
+
 
 @app.get("/api/horario/status")
 def api_horario_status():
@@ -425,7 +508,7 @@ def obtener_registros(fecha: str = None):
                 "estudiante": usuario.nombre if usuario else "Desconocido",
                 "curso": curso_nombre,
                 "racion": r.tipo_solicitud,
-                "hora": str(r.hora) if r.hora else "",
+                "hora": r.hora.strftime('%H:%M:%S') if r.hora else "",
                 "fecha": str(r.fecha) if r.fecha else "",
                 "terminal": r.totem.ubicacion if r.totem else str(r.totem_id),
                 "estado": r.estado_registro,
@@ -476,7 +559,7 @@ def historial_usuario(user_id: int):
     db = SessionLocal()
     try:
         tickets = db.query(Ticket).filter(Ticket.usuario_id == user_id).order_by(Ticket.fecha_emision.desc()).all()
-        return [{"fecha": str(t.fecha_emision), "hora": str(t.hora_emision), "tipo": t.tipo_ticket} for t in tickets]
+        return [{"fecha": str(t.fecha_emision), "hora": t.hora_emision.strftime('%H:%M:%S') if t.hora_emision else "", "tipo": t.tipo_ticket} for t in tickets]
     finally:
         db.close()
 
@@ -518,7 +601,7 @@ def editar_usuario(user_id: int, datos: UpdateUser):
         if datos.curso_id is not None:
             usuario.curso_id = datos.curso_id
         if datos.observaciones is not None:
-            usuario.observaciones = datos.observaciones[:1000]
+            usuario.observaciones = datos.observaciones[:500]
         db.commit()
         return {"estado": True, "mensaje": "Usuario actualizado"}
     except Exception as e:
@@ -688,50 +771,88 @@ def crear_usuario_base_endpoint(datos: NuevoUsuario):
 
 @app.websocket("/ws/totem")
 async def ws_totem(websocket: WebSocket):
-    """Flujo completo: identifica huella y procesa ticket. Reemplaza POST /api/totem/acceso + polling."""
+    """
+    Consumidor: Escucha la cola de huellas procesadas por el sensor_worker.
+    Ya no toca el hardware directamente, evitando hilos zombies.
+    """
     await websocket.accept()
-    try:
-        tipo = obtener_tipo_racion()
-        if tipo is None:
-            await websocket.send_json({"estado": "Rechazado", "mensaje": descripcion_horario()})
-            return
-
-        if not hardware_service.esta_listo:
-            exito, msg = hardware_service.inicializar()
-            if not exito:
-                await websocket.send_json({"estado": "error", "mensaje": msg})
-                return
-
-        huella_buffer.limpiar()
-
-        loop = asyncio.get_running_loop()
+    
+    #matamos la cola sucia para agilizar el proceso
+    while not cola_huellas.empty():
         try:
-            user_id, score = await asyncio.wait_for(
-                loop.run_in_executor(None, hardware_service.identificar_usuario),
-                timeout=20.0
-            )
-        except asyncio.TimeoutError:
-            await websocket.send_json({"estado": "Rechazado", "mensaje": "Tiempo de espera agotado"})
-            return
+            cola_huellas.get_nowait()
+            cola_huellas.task_done()
+        except asyncio.QueueEmpty:
+            break
+    
+    try:
+        while True:
+            # 1. Esperamos pasivamente a que el Worker ponga algo en la cola
+            mensaje = await cola_huellas.get()
+            
+            # 2. Solo procesamos si el mensaje es de tipo ASISTENCIA
+            if mensaje["tipo"] == "ASISTENCIA":
+                user_id, score = mensaje["datos"]
+                
+                # --- Lógica de negocio (Admin y Horarios) ---
+                db = SessionLocal()
+                try:
+                    usuario = db.query(Usuario).filter(Usuario.id == user_id).first()
+                    
+                    # Caso 1: Identificación de Administrador
+                    if usuario and usuario.curso and usuario.curso.nivel == "Admin":
+                        await websocket.send_json({
+                            "estado": "Admin", 
+                            "user_id": user_id, 
+                            "nombre": usuario.nombre
+                        })
+                    
+                    # Caso 2: Alumno normal (Procesar Ticket)
+                    else:
+                        tipo = obtener_tipo_racion()
+                        if tipo is None:
+                            await websocket.send_json({
+                                "estado": "Rechazado", 
+                                "mensaje": descripcion_horario()
+                            })
+                        else:
+                            # Registramos la asistencia en la DB
+                            resultado = registros_controller.procesarAsistencia(user_id)
+                            await websocket.send_json(resultado)
+                
+                #salida limpia si el cliente se desconecta a mitad del proceso
+                except WebSocketDisconnect:
+                    raise
+                except RuntimeError as e:
+                    if "close message has been sent" in str(e):
+                        break
+                    else:
+                        logger.error(f"[WS TOTEM] RuntimeError inesperado: {e}")
+                except Exception as e:
+                    logger.error(f"[WS TOTEM] Error en proceso: {e}")
+                finally:
+                    db.close()
+                # Avisamos a la cola que ya terminamos con este dato
+                cola_huellas.task_done()
+            
+            elif mensaje["tipo"] == "NO_RECONOCIDO":
+                await websocket.send_json({
+                    "estado": "Rechazado", 
+                    "mensaje": "Alumno no enrolado en el sistema"
+                })
+                cola_huellas.task_done()
 
-        if user_id < 0:
-            # Captura fallida (ruido/contacto parcial): cerrar sin mensaje.
-            # El frontend detecta el cierre y reintenta automáticamente.
-            return
+            else:
+                #Si el mensaje es para ENROLAR, lo devolvemos a la cola 
+                await cola_huellas.put(mensaje)
+                cola_huellas.task_done()
+                await asyncio.sleep(0.1)  # Pequeña pausa para evitar bucles rápidos en caso de mensajes no ASISTENCIA
 
-        if user_id == 0:
-            # Huella capturada correctamente pero no pertenece a ningún alumno enrolado.
-            await websocket.send_json({
-                "estado": "Rechazado",
-                "mensaje": "Alumno no enrolado en el sistema"
-            })
-            return
-
-        resultado = registros_controller.procesarAsistencia(user_id)
-        await websocket.send_json(resultado)
-
+    except asyncio.CancelledError:
+        raise
     except WebSocketDisconnect:
-        pass
+        # El sensor_worker sigue corriendo felizmente de fondo.
+        logger.info("[WS TOTEM] Cliente desconectado. Limpieza no requerida.")
 
 @app.websocket("/ws/huella/capturar-identificar")
 async def ws_huella_capturar_identificar(websocket: WebSocket):
@@ -793,34 +914,31 @@ async def ws_huella_identificar(websocket: WebSocket):
 
 @app.websocket("/ws/huella/enrolar/{user_id}")
 async def ws_huella_enrolar(websocket: WebSocket, user_id: int):
-    """Captura y guarda huella para un usuario ya creado en BD."""
     await websocket.accept()
     try:
-        if not hardware_service.esta_listo:
-            await websocket.send_json({"estado": False, "mensaje": "Sensor no inicializado"})
-            return
-
-        loop = asyncio.get_running_loop()
-        try:
-            resultado = await asyncio.wait_for(
-                loop.run_in_executor(
-                    None,
-                    lambda: huella_buffer.procesar_contexto(
-                        contexto="enrolar",
-                        controlador_hardware=hardware_service,
-                        id_alumno=user_id
-                    )
-                ),
-                timeout=15.0
-            )
-        except asyncio.TimeoutError:
-            await websocket.send_json({"estado": False, "mensaje": "Tiempo de espera agotado"})
-            return
-
-        await websocket.send_json(resultado)
+        # 1. Le dejamos la orden al Worker
+        instruccion_sensor["modo"] = "ENROLAR"
+        instruccion_sensor["target_user_id"] = user_id
+        
+        # 2. Nos sentamos a esperar que el Worker haga el trabajo sucio
+        while True:
+            mensaje = await cola_huellas.get()
+            
+            # Filtramos para asegurarnos de que es la respuesta a nuestra orden
+            if mensaje["tipo"] == "ENROLAMIENTO_LISTO":
+                await websocket.send_json(mensaje["datos"])
+                cola_huellas.task_done()
+                break # Terminamos el enrolamiento
+            else:
+                # Si era una lectura de asistencia que se coló, la devolvemos a la cola
+                await cola_huellas.put(mensaje)
+                cola_huellas.task_done()
+                await asyncio.sleep(0.1)
 
     except WebSocketDisconnect:
-        pass
+        # Si el admin cancela a la mitad, devolvemos el sensor a la normalidad
+        instruccion_sensor["modo"] = "ASISTENCIA"
+        instruccion_sensor["target_user_id"] = None
 
 @app.websocket("/ws/huella/editar/{user_id}")
 async def ws_huella_editar(websocket: WebSocket, user_id: int):
@@ -955,7 +1073,7 @@ def exportar_excel_filtrado(
                 curso_nombre,
                 r.tipo_solicitud,
                 str(r.fecha) if r.fecha else "",
-                str(r.hora) if r.hora else "",
+                r.hora.strftime('%H:%M:%S') if r.hora else "",
                 r.totem.ubicacion if r.totem else str(r.totem_id),
                 r.estado_registro,
             ])
@@ -1181,7 +1299,8 @@ def api_vincular_huella(datos: VincularHuella):
         db.commit()
 
         huella_bytes = bytes.fromhex(datos.huella_hex)
-        hardware_service.guardar_en_bd(datos.usuario_id, huella_bytes)
+        if not hardware_service.guardar_en_bd(datos.usuario_id, huella_bytes):
+            hardware_service.refrescar_bd_hardware()
 
         return {"estado": True, "mensaje": "Huella vinculada correctamente"}
     except HTTPException:
@@ -1205,6 +1324,101 @@ async def api_importar_usuarios(file: UploadFile = File(...)):
         return {"estado": True, "mensaje": resultado["mensaje"]}
     else:
         raise HTTPException(status_code=500, detail=resultado["mensaje"])
+
+# ================================
+# SYNC ENTRE TÓTEMS
+# ================================
+
+class SyncAlumno(BaseModel):
+    rut: str
+    nombre: str
+    es_pae: bool
+    observaciones: Optional[str] = None
+    curso_numero: Optional[int] = None
+    curso_nivel: Optional[str] = None
+    curso_letra: Optional[str] = None
+    huella_blob: Optional[str] = None
+
+class SyncPayload(BaseModel):
+    alumnos: List[SyncAlumno]
+
+@app.get("/api/sync/export")
+def api_sync_export():
+    db = SessionLocal()
+    try:
+        usuarios = db.query(Usuario).all()
+        resultado = []
+        for u in usuarios:
+            c = u.curso
+            resultado.append({
+                "rut": u.rut,
+                "nombre": u.nombre,
+                "es_pae": u.es_pae,
+                "observaciones": u.observaciones,
+                "curso_numero": c.numero if c else None,
+                "curso_nivel": c.nivel if c else None,
+                "curso_letra": c.letra if c else None,
+                "huella_blob": u.huella.huella_blob if u.huella else None,
+            })
+        return {"alumnos": resultado}
+    finally:
+        db.close()
+
+@app.post("/api/sync/import")
+def api_sync_import(payload: SyncPayload):
+    db = SessionLocal()
+    creados = 0
+    actualizados = 0
+    try:
+        for alumno in payload.alumnos:
+            curso_id = None
+            if alumno.curso_nivel:
+                curso = db.query(Curso).filter(
+                    Curso.nivel == alumno.curso_nivel,
+                    Curso.letra == alumno.curso_letra,
+                    Curso.numero == alumno.curso_numero
+                ).first()
+                if curso:
+                    curso_id = curso.id
+
+            usuario = db.query(Usuario).filter(Usuario.rut == alumno.rut).first()
+            if usuario:
+                usuario.nombre = alumno.nombre
+                usuario.es_pae = alumno.es_pae
+                if alumno.observaciones is not None:
+                    usuario.observaciones = alumno.observaciones
+                if curso_id:
+                    usuario.curso_id = curso_id
+                actualizados += 1
+            else:
+                usuario = Usuario(
+                    rut=alumno.rut,
+                    nombre=alumno.nombre,
+                    es_pae=alumno.es_pae,
+                    observaciones=alumno.observaciones,
+                    curso_id=curso_id,
+                    estado_id=1,
+                )
+                db.add(usuario)
+                db.flush()
+                creados += 1
+
+            if alumno.huella_blob:
+                huella = db.query(Huella).filter(Huella.usuario_id == usuario.id).first()
+                if huella:
+                    huella.huella_blob = alumno.huella_blob
+                else:
+                    db.add(Huella(huella_blob=alumno.huella_blob, usuario_id=usuario.id))
+
+        db.commit()
+        logger.info(f"[SYNC] Import completado: {creados} creados, {actualizados} actualizados")
+        return {"estado": True, "creados": creados, "actualizados": actualizados}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"[SYNC] Error en import: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
 
 # ================================
 # AUTH
@@ -1253,6 +1467,38 @@ def api_cambiar_credenciales(datos: CambiarCredenciales):
     finally:
         db.close()
 
+# ================================
+# ENDPOINTS PEER NODES (URLs de tótems persistidas en BD)
+# ================================
+
+class PeerNodeSchema(BaseModel):
+    nombre: str
+    url: str
+
+@app.get("/api/peers")
+def get_peers():
+    db = SessionLocal()
+    try:
+        peers = db.query(PeerNode).all()
+        return [{"id": p.id, "nombre": p.nombre, "url": p.url} for p in peers]
+    finally:
+        db.close()
+
+@app.put("/api/peers")
+def set_peers(peers: List[PeerNodeSchema]):
+    db = SessionLocal()
+    try:
+        db.query(PeerNode).delete(synchronize_session=False)
+        for p in peers:
+            db.add(PeerNode(nombre=p.nombre, url=p.url))
+        db.commit()
+        return {"estado": True}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
 app.mount("/", StaticFiles(directory=static_dir, html=True), name="frontend")
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=8080)

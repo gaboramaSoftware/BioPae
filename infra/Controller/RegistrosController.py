@@ -111,7 +111,7 @@ class RegistrosController:
                     curso,
                     t.tipo_ticket,
                     str(t.fecha_emision),
-                    str(t.hora_emision),
+                    t.hora_emision.strftime('%H:%M:%S') if t.hora_emision else "",
                 ])
 
             ruta = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "registros.xlsx"))
