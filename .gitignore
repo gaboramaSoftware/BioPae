@@ -37,8 +37,15 @@ infra/DB/backups/
 *.exe
 *.csv
 
-# Instaladores y pendrive
+# Instaladores, pendrive y scripts locales
 Pendrive/
+pendrive/
+scripts/
+
+# SDK ZKFinger (binarios nativos — no trackear)
+ZKFingerSDK_Windows_Standard/
+libzfp.dll
+*.dll
 
 # Otros archivos de sistema/IDE
 .claude/

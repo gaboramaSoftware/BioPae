@@ -47,6 +47,14 @@
           "**/*",
           "!**/__pycache__/**"
         ]
+      },
+      {
+        "from": "../../scripts/setup_nuc.ps1",
+        "to": "setup/setup_nuc.ps1"
+      },
+      {
+        "from": "../../deps/ZKFingerSDK_setup.exe",
+        "to": "setup/ZKFingerSDK_setup.exe"
       }
     ],
     "win": {

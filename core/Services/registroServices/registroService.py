@@ -30,4 +30,4 @@ class RegistroService:
         return self.registro_repo.obtener_registros(usuario_id)
     
     def eliminar_registros(self, usuario_id):
-        self.registro_repo.eliminar_registros(usuario_id)Ñ
+        self.registro_repo.eliminar_registros(usuario_id)

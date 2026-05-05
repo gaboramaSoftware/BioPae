@@ -26,11 +26,30 @@ if os.name == 'nt':
 if ruta_hardware not in sys.path:
     sys.path.append(ruta_hardware)
 
-try:
-    import sensorWrapper
-except ImportError as e:
-    print(f"[PRECAUCIÓN] No se pudo cargar el sensorWrapper de C++. Error: {e}")
-    sensorWrapper = None
+def _probar_sensor():
+    """Prueba el import en subproceso para que un crash de DLL no mate el servidor."""
+    import subprocess
+    try:
+        r = subprocess.run(
+            [sys.executable, '-c', 'import sensorWrapper; print("OK")'],
+            capture_output=True, text=True, timeout=5
+        )
+        if r.returncode != 0 or 'OK' not in r.stdout:
+            logger.warning(f"[SENSOR PROBE] sensorWrapper no disponible.\n  stdout: {r.stdout.strip()}\n  stderr: {r.stderr.strip()}")
+            return False
+        return True
+    except Exception as e:
+        logger.warning(f"[SENSOR PROBE] Error ejecutando subproceso de prueba: {e}")
+        return False
+
+sensorWrapper = None
+if _probar_sensor():
+    try:
+        import sensorWrapper
+    except Exception as e:
+        print(f"[PRECAUCIÓN] No se pudo cargar el sensorWrapper de C++. Error: {e}")
+else:
+    print("[PRECAUCIÓN] sensorWrapper no disponible — sensor desconectado o driver no instalado")
 
 class HuellaService:
     _instancia = None
