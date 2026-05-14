@@ -26,6 +26,22 @@ def buscarDB():
             print(f"[DB] Encontrada en {rutaFinal}")
             return rutaFinal
 
+    # Safety net: si el directorio raiz no es escribible (ej: Program Files en produccion
+    # sin BIOPAE_DATA_DIR), caer a %APPDATA%\BioPAE para evitar PermissionError.
+    appdata = os.environ.get('APPDATA')
+    if appdata:
+        try:
+            testFile = os.path.join(rutaRaiz, '.write_test')
+            with open(testFile, 'w') as f:
+                f.write('')
+            os.remove(testFile)
+        except OSError:
+            safe_dir = os.path.join(appdata, 'BioPAE')
+            os.makedirs(safe_dir, exist_ok=True)
+            rutaSafe = os.path.join(safe_dir, nombreDB)
+            print(f"[DB] Directorio raiz no escribible. Usando fallback seguro: {rutaSafe}")
+            return rutaSafe
+
     rutaPorDefecto = os.path.join(rutaRaiz, nombreDB)
     print(f"[DB] No encontrada. Se creara en {rutaPorDefecto}")
     return rutaPorDefecto

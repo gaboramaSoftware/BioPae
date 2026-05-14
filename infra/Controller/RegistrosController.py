@@ -3,6 +3,18 @@ import os
 import openpyxl
 from datetime import date
 from sqlalchemy.exc import IntegrityError as SAIntegrityError
+
+
+def _directorio_exports() -> str:
+    """Devuelve un directorio escribible para exportaciones Excel.
+    En producción usa BIOPAE_DATA_DIR; en desarrollo usa infra/ del proyecto."""
+    data_dir = os.environ.get('BIOPAE_DATA_DIR')
+    if data_dir:
+        exports = os.path.join(data_dir, 'exports')
+    else:
+        exports = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    os.makedirs(exports, exist_ok=True)
+    return exports
 from core.Domain.Repository.RegistroRepository import (
     crear_registro_evento,
     generar_ticket_comida,
@@ -114,7 +126,7 @@ class RegistrosController:
                     t.hora_emision.strftime('%H:%M:%S') if t.hora_emision else "",
                 ])
 
-            ruta = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "registros.xlsx"))
+            ruta = os.path.join(_directorio_exports(), "registros.xlsx")
             wb.save(ruta)
             return {"estado": True, "ruta": ruta}
         except Exception as e:
@@ -143,7 +155,7 @@ class RegistrosController:
                     "Sí" if u.es_pae else "No",
                 ])
 
-            ruta = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "alumnos_sistema.xlsx"))
+            ruta = os.path.join(_directorio_exports(), "alumnos_sistema.xlsx")
             wb.save(ruta)
             return {"estado": True, "ruta": ruta}
         except Exception as e:

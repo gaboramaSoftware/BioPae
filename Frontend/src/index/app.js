@@ -3,7 +3,8 @@
 // ============================================
 
 // URL del tótem que sirve este panel (escritura/hardware siempre aquí)
-const API_URL = window.location.origin;
+// En Electron (loadFile) window.location.origin es "null" — usar la URL hardcodeada del backend
+const API_URL = window.location.protocol === 'file:' ? 'http://127.0.0.1:8080' : window.location.origin;
 
 function obtenerTotems() {
     try {
@@ -76,6 +77,7 @@ let confirmandoDuplicado = false;  // true cuando esperamos confirmación de dup
 let usuarioDuplicadoId = null;     // ID del duplicado encontrado
 let _enrollAdminMode = false;
 let _adminCursoId = null;
+let _cursosCache = [];
 let _enrollRetryData = null;
 
 
@@ -352,19 +354,29 @@ async function openEnrollModal(adminMode = false) {
 
     try {
         const res = await fetch(`${API_URL}/api/cursos`);
-        const cursos = await res.json();
-        const select = document.getElementById('enroll-curso');
-        if (adminMode) {
-            const adminCurso = cursos.find(c => c.nivel === 'Admin');
-            if (adminCurso) {
-                _adminCursoId = adminCurso.id;
-                select.innerHTML = `<option value="${adminCurso.id}" selected>${adminCurso.nombre}</option>`;
+        _cursosCache = await res.json();
+        const adminCurso = _cursosCache.find(c => c.nivel === 'Admin');
+        if (adminCurso) _adminCursoId = adminCurso.id;
+
+        if (!adminMode) {
+            const nivelesOrdenados = [...new Map(
+                _cursosCache
+                    .filter(c => c.nivel !== 'Admin' && c.letra && c.letra.trim())
+                    .map(c => [c.numero ? `${c.numero} ${c.nivel}` : c.nivel, null])
+            ).keys()].sort((a, b) => {
+                const ka = _ordenCursoChileno(a + ' A');
+                const kb = _ordenCursoChileno(b + ' A');
+                return ka.nivelNum - kb.nivelNum;
+            });
+            const nivelSelect = document.getElementById('enroll-nivel');
+            if (nivelSelect) {
+                nivelSelect.innerHTML = '<option value="">Seleccione nivel</option>' +
+                    nivelesOrdenados.map(n => `<option value="${n}">${n}</option>`).join('');
             }
-        } else {
-            const regularCursos = cursos.filter(c => c.nivel !== 'Admin');
-            select.innerHTML = '<option value="">Seleccione un curso</option>' +
-                regularCursos.sort((a, b) => _compararCurso(a.nombre, b.nombre))
-                             .map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+            const letraInput = document.getElementById('enroll-letra');
+            if (letraInput) letraInput.value = '';
+            const cursoHidden = document.getElementById('enroll-curso');
+            if (cursoHidden) cursoHidden.value = '';
         }
     } catch (e) {
         console.error('[ENROLAR] Error al cargar cursos:', e.message);
@@ -373,10 +385,14 @@ async function openEnrollModal(adminMode = false) {
     const modalTitle = document.querySelector('#enrollModal .modal-header h2');
     if (modalTitle) modalTitle.textContent = adminMode ? 'Enrolar Administrador' : 'Enrolar Nuevo Estudiante';
 
-    const cursoSelect = document.getElementById('enroll-curso');
-    const cursoGroup = cursoSelect?.closest('.form-group');
-    if (cursoGroup) cursoGroup.style.display = adminMode ? 'none' : '';
-    if (cursoSelect) cursoSelect.required = !adminMode;
+    const nivelGroup = document.getElementById('enroll-nivel-group');
+    const letraGroup = document.getElementById('enroll-letra-group');
+    if (nivelGroup) nivelGroup.style.display = adminMode ? 'none' : '';
+    if (letraGroup) letraGroup.style.display = adminMode ? 'none' : '';
+    const nivelSelect = document.getElementById('enroll-nivel');
+    const letraInput = document.getElementById('enroll-letra');
+    if (nivelSelect) nivelSelect.required = !adminMode;
+    if (letraInput) letraInput.required = !adminMode;
 
     const paeGroup = document.getElementById('enroll-pae')?.closest('.form-group');
     if (paeGroup) paeGroup.style.display = adminMode ? 'none' : '';
@@ -390,6 +406,7 @@ async function openEnrollModal(adminMode = false) {
 function openEnrollAdminModal() {
     openEnrollModal(true);
 }
+
 
 function _enrollShowStep(stepId) {
     const form = document.getElementById('enrollForm');
@@ -449,10 +466,14 @@ function closeEnrollModal() {
 
     const modalTitle = document.querySelector('#enrollModal .modal-header h2');
     if (modalTitle) modalTitle.textContent = 'Enrolar Nuevo Estudiante';
-    const cursoSelectReset = document.getElementById('enroll-curso');
-    if (cursoSelectReset) cursoSelectReset.required = true;
-    const cursoGroup = cursoSelectReset?.closest('.form-group');
-    if (cursoGroup) cursoGroup.style.display = '';
+    const nivelGroupReset = document.getElementById('enroll-nivel-group');
+    const letraGroupReset = document.getElementById('enroll-letra-group');
+    if (nivelGroupReset) nivelGroupReset.style.display = '';
+    if (letraGroupReset) letraGroupReset.style.display = '';
+    const nivelSelectReset = document.getElementById('enroll-nivel');
+    const letraInputReset = document.getElementById('enroll-letra');
+    if (nivelSelectReset) nivelSelectReset.required = true;
+    if (letraInputReset) letraInputReset.required = true;
     const paeGroup = document.getElementById('enroll-pae')?.closest('.form-group');
     if (paeGroup) paeGroup.style.display = '';
     _enrollAdminMode = false;
@@ -466,12 +487,16 @@ async function handleEnrollStudent(event) {
 
     const nombre   = document.getElementById('enroll-nombre').value.trim();
     const apellido = document.getElementById('enroll-apellido').value.trim();
-    const cursoId  = _enrollAdminMode ? _adminCursoId : parseInt(document.getElementById('enroll-curso').value);
     const esPae    = _enrollAdminMode ? false : (document.getElementById('enroll-pae')?.checked ?? false);
     const inputRut = document.getElementById('enroll-run')?.value.trim() ?? '';
 
-    if (!nombre || !apellido || !cursoId) {
-        alert(_enrollAdminMode ? 'Completa nombre y apellido.' : 'Completa nombre, apellido y curso.');
+    const nivelVal = document.getElementById('enroll-nivel')?.value?.trim() ?? '';
+    const letraVal = document.getElementById('enroll-letra')?.value?.trim().toUpperCase() ?? '';
+    const cursoId  = _enrollAdminMode ? _adminCursoId : null;
+    const cursoNombre = _enrollAdminMode ? null : (nivelVal && letraVal ? `${nivelVal} ${letraVal}` : '');
+
+    if (!nombre || !apellido || (_enrollAdminMode ? !cursoId : !cursoNombre)) {
+        alert(_enrollAdminMode ? 'Completa nombre y apellido.' : 'Completa nombre, apellido, nivel y letra del curso.');
         return;
     }
 
@@ -523,6 +548,7 @@ async function handleEnrollStudent(event) {
                 nombre: `${nombre} ${apellido}`,
                 rut: rutFinal,
                 curso_id: cursoId,
+                curso_nombre: cursoNombre || null,
                 estado_id: 1,
                 es_pae: esPae
             })

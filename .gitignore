@@ -36,6 +36,7 @@ infra/DB/backups/
 *.pdf
 *.exe
 *.csv
+*.md
 
 # Instaladores, pendrive y scripts locales
 Pendrive/

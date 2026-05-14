@@ -9,7 +9,11 @@ PYBIND11_MODULE(sensorWrapper, m) {
       .def(py::init<>())
       .def("init_sensor", &Sensor::initSensor)
       .def("close_sensor", &Sensor::closeSensor)
-      .def("db_add", &Sensor::DBAdd)
+      .def("db_add", [](Sensor &s, const std::vector<unsigned char> &tpl, int uid) {
+        bool ok;
+        { py::gil_scoped_release release; ok = s.DBAdd(tpl, uid); }
+        return ok;
+      })
       .def("capture_template_immediate", [](Sensor &s){
         std::vector<unsigned char> data;
         bool ok;

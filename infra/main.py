@@ -260,12 +260,20 @@ huella_buffer = HuellaController(db=SessionLocal())
 # Se inicializa con el TOTEM_ID dinámico
 registros_controller = RegistrosController(totem_id=TOTEM_ID)
 
-static_dir = os.path.join(os.path.dirname(__file__), "..", "Frontend", "src")
+# En producción Electron sirve el frontend directamente — el backend solo lo necesita
+# en desarrollo (acceso por browser). Si no existe, no crashear.
+_frontend_dir_env = os.environ.get('BIOPAE_FRONTEND_DIR')
+static_dir = _frontend_dir_env or os.path.join(os.path.dirname(__file__), "..", "Frontend", "src")
+static_dir = os.path.abspath(static_dir)
+_index_html = os.path.join(static_dir, "index.html")
+_frontend_disponible = os.path.isfile(_index_html)
 os.makedirs(static_dir, exist_ok=True)
 
 @app.get("/")
 def serve_frontend():
-    return FileResponse(os.path.join(static_dir, "index.html"))
+    if not _frontend_disponible:
+        return {"estado": "ok", "modo": "produccion", "mensaje": "Frontend servido por Electron"}
+    return FileResponse(_index_html)
 
 # ================================
 # MODELOS PYDANTIC
@@ -1024,7 +1032,8 @@ async def api_exportar_alumnos():
 
 @app.get("/api/descargar/alumnos")
 def api_descargar_alumnos():
-    ruta_archivo = os.path.join(os.path.dirname(__file__), "alumnos_sistema.xlsx")
+    from infra.Controller.RegistrosController import _directorio_exports
+    ruta_archivo = os.path.join(_directorio_exports(), "alumnos_sistema.xlsx")
     if os.path.exists(ruta_archivo):
         return FileResponse(ruta_archivo, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename="alumnos_sistema.xlsx")
     else:
@@ -1102,7 +1111,8 @@ async def api_exportar_excel():
     
 @app.get("/api/descargar/excel")
 def api_descargar_excel():
-    ruta_archivo = os.path.join(os.path.dirname(__file__), "registros.xlsx")
+    from infra.Controller.RegistrosController import _directorio_exports
+    ruta_archivo = os.path.join(_directorio_exports(), "registros.xlsx")
     if os.path.exists(ruta_archivo):
         return FileResponse(ruta_archivo, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename="registros.xlsx")
     else:
@@ -1499,6 +1509,7 @@ def set_peers(peers: List[PeerNodeSchema]):
     finally:
         db.close()
 
-app.mount("/", StaticFiles(directory=static_dir, html=True), name="frontend")
+if _frontend_disponible:
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="frontend")
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8080)

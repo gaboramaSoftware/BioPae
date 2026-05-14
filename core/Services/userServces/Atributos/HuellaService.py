@@ -216,10 +216,9 @@ class HuellaService:
     def cargar_huellas_iniciales(self) -> dict:
         """
         Lee todas las huellas persistidas en SQLite y las inyecta en la RAM del sensor.
-        Debe llamarse una sola vez al arrancar el servidor, después de inicializar().
-        Retorna un dict con las claves 'cargadas' y 'fallidas'.
+        Fase 1 (sin lock): lectura de SQLite.
+        Fase 2 (con capture_lock): db_add al sensor C++ para evitar race con sensor_worker.
         """
-        # Importaciones locales para evitar dependencias circulares en el arranque
         from core.Domain.Repository.UserRepository import SessionLocal
         from infra.DB.modelos import Huella
 
@@ -227,41 +226,46 @@ class HuellaService:
             logger.warning("[STARTUP] Sensor no disponible. No se cargaron huellas en RAM.")
             return {"cargadas": 0, "fallidas": 0}
 
-        cargadas = 0
+        # Fase 1: leer SQLite sin bloquear el sensor
+        pendientes: list[tuple[int, list]] = []
         fallidas = 0
         db = SessionLocal()
         try:
             huellas = db.query(Huella).all()
             logger.info(f"[STARTUP] {len(huellas)} huellas encontradas en SQLite. Inyectando en RAM...")
-
             for huella in huellas:
+                if huella.usuario_id is None:
+                    logger.warning(f"[STARTUP] Huella id={huella.id} sin usuario_id (huérfana). Saltando.")
+                    fallidas += 1
+                    continue
+                if not huella.huella_blob:
+                    logger.error(f"[STARTUP] Huella usuario_id={huella.usuario_id} con blob vacío. Saltando.")
+                    fallidas += 1
+                    continue
                 try:
-                    if huella.usuario_id is None:
-                        logger.warning(f"[STARTUP] Huella id={huella.id} sin usuario_id (huérfana). Saltando.")
-                        fallidas += 1
-                        continue
-                    if not huella.huella_blob:
-                        raise ValueError("huella_blob vacío")
-                    huella_bytes = bytes.fromhex(huella.huella_blob)
-                    huella_lista = list(huella_bytes)
-                    exito = self.sensor.db_add(huella_lista, huella.usuario_id)
-                    if exito:
-                        cargadas += 1
-                        logger.info(f"[STARTUP] Huella usuario_id={huella.usuario_id} cargada OK.")
-                    else:
-                        fallidas += 1
-                        logger.error(
-                            f"[STARTUP] db_add rechazó la huella de usuario_id={huella.usuario_id}."
-                        )
+                    pendientes.append((huella.usuario_id, list(bytes.fromhex(huella.huella_blob))))
                 except Exception as e:
                     fallidas += 1
-                    logger.error(
-                        f"[STARTUP] Error al cargar huella usuario_id={huella.usuario_id}: {e}"
-                    )
-
-            logger.info(f"[STARTUP] Carga completa: {cargadas} OK, {fallidas} fallidas.")
-            if cargadas > 0 or fallidas == 0:
-                self._huellas_cargadas = True
-            return {"cargadas": cargadas, "fallidas": fallidas}
+                    logger.error(f"[STARTUP] Error decodificando huella usuario_id={huella.usuario_id}: {e}")
         finally:
             db.close()
+
+        # Fase 2: inyectar en RAM del sensor bajo capture_lock para no competir con sensor_worker
+        cargadas = 0
+        with self.capture_lock:
+            for usuario_id, huella_lista in pendientes:
+                try:
+                    if self.sensor.db_add(huella_lista, usuario_id):
+                        cargadas += 1
+                        logger.info(f"[STARTUP] Huella usuario_id={usuario_id} cargada OK.")
+                    else:
+                        fallidas += 1
+                        logger.error(f"[STARTUP] db_add rechazó la huella de usuario_id={usuario_id}.")
+                except Exception as e:
+                    fallidas += 1
+                    logger.error(f"[STARTUP] Error al cargar huella usuario_id={usuario_id}: {e}")
+
+        logger.info(f"[STARTUP] Carga completa: {cargadas} OK, {fallidas} fallidas.")
+        if cargadas > 0 or fallidas == 0:
+            self._huellas_cargadas = True
+        return {"cargadas": cargadas, "fallidas": fallidas}

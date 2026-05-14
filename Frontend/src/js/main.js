@@ -62,14 +62,15 @@ function iniciarServidor() {
 
     const pythonExe = encontrarPython(proyectoRaiz);
 
-    // En producción la DB va a %APPDATA%\BioPAE\ (carpeta escribible).
-    // En desarrollo no se setea → IniciarDB.py usa el comportamiento actual.
-    const dataDir = app.isPackaged ? app.getPath('userData') : null;
+    // La DB siempre va a %APPDATA%\[AppName]\ (carpeta escribible en cualquier usuario Windows).
+    // app.getPath('userData') funciona tanto en desarrollo como en producción empaquetada.
+    const dataDir = app.getPath('userData');
 
     console.log('[MAIN] Iniciando servidor FastAPI...');
+    console.log('[MAIN] app.isPackaged:', app.isPackaged);
     console.log('[MAIN] Directorio del proyecto:', proyectoRaiz);
     console.log('[MAIN] Python:', pythonExe);
-    if (dataDir) console.log('[MAIN] BIOPAE_DATA_DIR:', dataDir);
+    console.log('[MAIN] BIOPAE_DATA_DIR:', dataDir);
 
     pythonProcess = spawn(pythonExe, ['-m', 'uvicorn', 'infra.main:app', '--host', '0.0.0.0', '--port', '8080'], {
         cwd: proyectoRaiz,
@@ -136,11 +137,14 @@ async function esperarServidor(maxIntentos = 30) {
 
 function createWindow() {
     const { width, height } = screen.getPrimaryDisplay().size;
+    const rol = (process.env.BIOPAE_ROLE || '').toLowerCase();
+    const esTotem = rol === 'totem' || process.argv.includes('--kiosk');
+    const esAdmin = rol === 'admin';
 
     mainWindow = new BrowserWindow({
         width,
         height,
-        fullscreen: process.argv.includes('--kiosk'),
+        fullscreen: esTotem,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -150,11 +154,10 @@ function createWindow() {
         backgroundColor: '#1a1a1a'
     });
 
-    // Cargar el totem (index.html en la raíz de src/)
-    mainWindow.loadFile(path.join(__dirname, '..', 'index.html'));
-
-    if (!process.argv.includes('--kiosk')) {
-        mainWindow.webContents.openDevTools();
+    if (esAdmin) {
+        mainWindow.loadFile(path.join(__dirname, '..', 'index', 'auth.html'));
+    } else {
+        mainWindow.loadFile(path.join(__dirname, '..', 'index.html'));
     }
 }
 
