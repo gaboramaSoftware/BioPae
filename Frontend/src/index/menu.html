@@ -389,7 +389,8 @@
                     <div class="form-group">
                         <label for="enroll-run">RUN (sin puntos ni guión)</label>
                         <input type="text" id="enroll-run" required pattern="[0-9]{7,9}-?[0-9Kk]"
-                            placeholder="Ej: 12345678K" maxlength="11">
+                            placeholder="Ej: 12345678K o 100543210-3" maxlength="11"
+                            oninput="this.value=this.value.replace(/\./g,'')">
                     </div>
                     <div class="form-group">
                         <label for="enroll-nombre">Nombre</label>
@@ -584,7 +585,8 @@
                 <form id="editForm" onsubmit="handleEditStudent(event)">
                     <div class="form-group">
                         <label for="edit-run">RUN <span class="label-hint">sin puntos ni guión</span></label>
-                        <input type="text" id="edit-run" placeholder="Ej: 12345678K" maxlength="11">
+                        <input type="text" id="edit-run" placeholder="Ej: 12345678K o 100543210-3" maxlength="11"
+                            oninput="this.value=this.value.replace(/\./g,'')">
                     </div>
                     <div class="form-group">
                         <label for="edit-nombre">Nombre</label>
