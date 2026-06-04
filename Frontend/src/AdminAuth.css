@@ -1,0 +1,97 @@
+:root {
+    --primary-color: #3b82f6;
+    --secondary-color: #10b981;
+    --danger-color: #ef4444;
+    --bg-color: #0f172a;
+    --card-bg: rgba(30, 41, 59, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg-color) url('./assets/Fondo.png') center/cover fixed;
+    color: var(--text-main);
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* SCREENS */
+.screen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.4s ease forwards;
+}
+.screen.active { display: flex; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    text-align: center;
+}
+
+h1 { font-size: 3rem; font-weight: 800; }
+.subtitle { font-size: 1.5rem; color: var(--text-muted); }
+
+/* LOGO ICON */
+.fingerprint-icon {
+    animation: pulse 2s ease infinite;
+}
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50%       { transform: scale(1.06); }
+}
+
+/* SPINNER */
+.spinner {
+    width: 80px; height: 80px;
+    border: 8px solid rgba(255,255,255,0.1);
+    border-top: 8px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* APPROVED */
+.screen-approved .checkmark {
+    font-size: 6rem;
+    color: var(--secondary-color);
+}
+.ticket-info {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid var(--secondary-color);
+    border-radius: 16px;
+    padding: 2rem;
+    min-width: 300px;
+}
+.student-name  { font-size: 2rem; font-weight: 700; color: white; margin-bottom: 0.5rem; }
+.student-run,
+.student-curso { font-size: 1.2rem; color: var(--text-muted); }
+.ration-type   { font-size: 1.3rem; font-weight: 600; color: var(--secondary-color); margin-top: 0.5rem; }
+
+/* REJECTED */
+.screen-rejected .crossmark {
+    font-size: 6rem;
+    color: var(--danger-color);
+}
+.rejection-info {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--danger-color);
+    border-radius: 16px;
+    padding: 2rem;
+}
+.rejection-reason { font-size: 1.3rem; color: var(--text-muted); margin-bottom: 0.5rem; }

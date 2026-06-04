@@ -1,0 +1,43 @@
+# Entornos Python
+infra/python-embed/
+infra/venv/
+**/venv/
+**/.venv/
+
+# Hardware Windows-only (DLLs, binarios compilados)
+infra/Hardware/bin/
+infra/Hardware/x64lib/
+infra/Hardware/x86lib/
+infra/Hardware/asio-1.30.2/
+infra/Hardware/include/
+infra/Hardware/Template/
+infra/Hardware/*.pyd
+infra/Hardware/*.dll
+
+# Frontend Electron (no necesario en el backend)
+Frontend/
+
+# ZKFinger SDK (Windows)
+ZKFingerSDK_Windows_Standard/
+
+# Build artifacts y dependencias JS
+dist/
+build/
+**/node_modules/
+**/__pycache__/
+**/*.pyc
+
+# Base de datos y backups
+*.db
+*.db-wal
+*.db-shm
+infra/DB/backups/
+
+# Archivos grandes / no relevantes
+*.xlsx
+*.xls
+*.pdf
+*.exe
+*.csv
+*.zip
+*.log

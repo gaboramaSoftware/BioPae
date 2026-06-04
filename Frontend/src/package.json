@@ -1,0 +1,78 @@
+{
+  "name": "totem-digitador",
+  "version": "1.0.0",
+  "description": "Interfaz Electron para Totem Biometrico",
+  "main": "js/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "build:portable": "electron-builder --win --config.win.target=portable"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^41.1.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "cl.piamarta.biopae",
+    "productName": "BioPAE Totem",
+    "directories": {
+      "output": "../../dist"
+    },
+    "files": [
+      "js/**/*",
+      "index.html",
+      "index/**/*",
+      "style.css",
+      "styles/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../../infra",
+        "to": "backend/infra",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/Hardware/**",
+          "!**/DB/backups/**",
+          "!**/DB/biopae.db",
+          "!**/venv/**"
+        ]
+      },
+      {
+        "from": "../../core",
+        "to": "backend/core",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**"
+        ]
+      },
+      {
+        "from": "../../scripts/setup_nuc.ps1",
+        "to": "setup/setup_nuc.ps1"
+      },
+      {
+        "from": "../../deps/ZKFingerSDK_setup.exe",
+        "to": "setup/ZKFingerSDK_setup.exe"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BioPAE Totem"
+    }
+  }
+}
