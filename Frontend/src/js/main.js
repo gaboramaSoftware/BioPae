@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, ipcMain } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, dialog } = require('electron');
 const path = require('path');
 const http = require('http');
 const fs   = require('fs');
@@ -194,7 +194,8 @@ app.on('window-all-closed', () => {
         console.log('[MAIN] Cerrando servidor Python...');
         pythonProcess.kill();
     }
-    if (process.platform !== 'darwin') app.quit();
+    // Comportamiento de Kiosco: Forzar cierre total inmediato sin excepciones
+    app.quit();
 });
 
 // ============================================
@@ -229,3 +230,87 @@ ipcMain.handle('auth:login', async (event, args) => {
         req.end();
     });
 });
+
+// ============================================
+// CONTROL DE RESPALDOS SQL (EXPORTACIÓN / IMPORTACIÓN)
+// ============================================
+
+const BACKEND_DB_URL = 'http://127.0.0.1:8080/api/database';
+
+ipcMain.handle('database:export', async () => {
+    // 1. Abrir diálogo nativo del S.O. para guardar el archivo .sql
+    const { canceled, filePath } = await dialog.showSaveDialog({
+        title: 'Exportar Base de Datos',
+        defaultPath: path.join(app.getPath('downloads'), `backup_biopae_${Date.now()}.sql`),
+        filters: [{ name: 'Archivos SQL', extensions: ['sql'] }]
+    });
+
+    if (canceled || !filePath) return { success: false, message: 'Exportación cancelada por el usuario' };
+
+    try {
+        // 2. Consumir el dump generado por FastAPI
+        const response = await fetch(`${BACKEND_DB_URL}/export`);
+        if (!response.ok) throw new Error('El backend devolvió un estado erróneo al exportar');
+
+        const sqlText = await response.text();
+        
+        // 3. Guardar el archivo en el volumen físico elegido
+        fs.writeFileSync(filePath, sqlText, 'utf-8');
+        return { success: true, message: `Copia de seguridad almacenada en: ${filePath}` };
+    } catch (error) {
+        return { success: false, message: `Error en la exportación: ${error.message}` };
+    }
+});
+
+ipcMain.handle('database:import', async () => {
+    // 1. Abrir diálogo nativo del S.O. para seleccionar el archivo .sql
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+        title: 'Seleccionar Archivo de Respaldo SQL',
+        filters: [{ name: 'Archivos SQL', extensions: ['sql'] }],
+        properties: ['openFile']
+    });
+
+    if (canceled || filePaths.length === 0) return { success: false, message: 'Importación cancelada por el usuario' };
+    const filePath = filePaths[0];
+
+    try {
+        // 2. Leer los datos binarios locales del archivo elegido
+        const fileBuffer = fs.readFileSync(filePath);
+        const nombreArchivo = path.basename(filePath);
+        
+        // 3. Utilizar el constructor File nativo para conservar los metadatos exactos del archivo
+        const fileObject = new File([fileBuffer], nombreArchivo, { type: 'application/sql' });
+        
+        const formData = new FormData();
+        formData.append('file', fileObject);
+
+        // 4. Enviar el script SQL al backend
+        const response = await fetch(`${BACKEND_DB_URL}/import`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || 'Error interno durante el procesamiento del archivo SQL');
+
+        return { success: true, message: '¡Estructura y registros añadidos de forma correcta al sistema!' };
+    } catch (error) {
+        return { success: false, message: `Fallo crítico de importación: ${error.message}` };
+    }
+});
+
+async function exportarBaseDatos() {
+    // Llama al canal del proceso Main que ya dejamos listo
+    const resultado = await window.electron.ipcRenderer.invoke('database:export');
+    alert(resultado.message);
+}
+
+async function importarBaseDatos() {
+    if (confirm("¿Estás seguro? Cargar una nueva base de datos reemplazará los registros actuales.")) {
+        const resultado = await window.electron.ipcRenderer.invoke('database:import');
+        alert(resultado.message);
+        if (resultado.success) {
+            location.reload(); // Recarga la UI para ver los nuevos datos reflejados
+        }
+    }
+}

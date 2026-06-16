@@ -203,6 +203,20 @@
                     </div>
                     <div id="chart-cursos-container" style="padding: 1rem 1.25rem 0.75rem; min-height: 180px;"></div>
                 </div>
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-header">
+                        <h3>Mantenimiento del Sistema</h3>
+                        <small style="color:#888;font-size:0.75rem;">Carga o descarga un volcado completo de la base de datos (.db)</small>
+                    </div>
+                    <div style="display: flex; gap: 12px; padding: 1.25rem; flex-wrap: wrap;">
+                        <button class="btn-exportar" onclick="exportarBaseDatos()" style="margin:0; flex: 1; min-width: 200px; padding: 0.65rem 1rem;">
+                            <span class="icon"><ion-icon name="download-outline"></ion-icon></span> Respaldar Base de Datos Current
+                        </button>
+                        <button class="btn-primary" onclick="importarBaseDatos()" style="margin:0; flex: 1; min-width: 200px; padding: 0.65rem 1rem; background-color: #fbbf24; color: #111827; font-weight: 600;">
+                            <span class="icon"><ion-icon name="cloud-upload-outline"></ion-icon></span> Subir Nueva Base de Datos (.sql)
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Students Section -->

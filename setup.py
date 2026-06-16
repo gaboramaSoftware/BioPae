@@ -17,7 +17,11 @@ ext = Extension(
     library_dirs=[os.path.join(hw, "x64lib")],
     libraries=["libzkfp"],
     language="c++",
-    extra_compile_args=["/std:c++17"],
+    # Use platform-appropriate C++ standard flag
+    # MSVC uses '/std:c++17', GCC/Clang use '-std=c++17'
+    extra_compile_args=(
+        ["/std:c++17"] if os.name == "nt" else ["-std=c++17"]
+    ),
 )
 
 setup(name="sensorWrapper", ext_modules=[ext])

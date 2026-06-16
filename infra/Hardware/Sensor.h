@@ -5,7 +5,15 @@
 
 #include <string>
 #include <vector>
+
+#ifdef _WIN32
 #include <windows.h>
+#else
+// On non-Windows platforms, provide a minimal HANDLE alias so the code can compile.
+// The underlying SDK should provide appropriate types or return pointers compatible
+// with this alias when building on Unix-like systems.
+typedef void* HANDLE;
+#endif
 
 // zkteco sdk
 #include "include/libzkfp.h"

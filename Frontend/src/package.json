@@ -34,7 +34,6 @@
         "filter": [
           "**/*",
           "!**/__pycache__/**",
-          "!**/Hardware/**",
           "!**/DB/backups/**",
           "!**/DB/biopae.db",
           "!**/venv/**"
@@ -55,6 +54,13 @@
       {
         "from": "../../deps/ZKFingerSDK_setup.exe",
         "to": "setup/ZKFingerSDK_setup.exe"
+      },
+      {
+        "from": "../../python-embed",
+        "to": "backend/python-embed",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {
